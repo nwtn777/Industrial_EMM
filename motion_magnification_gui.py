@@ -301,6 +301,13 @@ class MotionMagnificationGUI:
         video_frame = ttk.LabelFrame(parent, text="Video en Tiempo Real con ROI")
         video_frame.pack(fill='both', expand=True, padx=5, pady=5)
         
+        # Status frame for video filters
+        video_status_frame = ttk.Frame(video_frame)
+        video_status_frame.pack(fill='x', padx=5, pady=2)
+        
+        self.noise_filter_status_label = ttk.Label(video_status_frame, text="Filtros: Desactivados", foreground="orange")
+        self.noise_filter_status_label.pack(pady=2)
+        
         # Crear un frame con scroll si es necesario
         self.video_label = ttk.Label(video_frame, text="📹 El video aparecerá aquí cuando inicies el monitoreo", 
                                     font=('Arial', 12), foreground="gray")
@@ -459,6 +466,9 @@ class MotionMagnificationGUI:
             self.calibrate_noise_button.config(state='disabled')
             
             self.is_running = True
+            
+            # Update noise filter status display
+            self.update_noise_filter_status()
             
             # Iniciar thread de procesamiento
             self.processing_thread = threading.Thread(target=self.processing_loop)
@@ -835,9 +845,8 @@ class MotionMagnificationGUI:
                 }
                 
                 # Actualizar interfaz
-                self.noise_calib_status.config(text="Modelo de ruido creado", foreground="green")
-                self.noise_calibration_status_label.config(
-                    text=f"Modelo de Ruido: Calibrado ({len(self.noise_calibration_frames)} frames)", 
+                self.noise_calib_status.config(
+                    text=f"Calibrado ({len(self.noise_calibration_frames)} frames)", 
                     foreground="green")
                 
                 # Activar uso de calibración por defecto
