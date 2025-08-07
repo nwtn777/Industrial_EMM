@@ -1,0 +1,36 @@
+{
+    "default_settings": {
+        "camera_id": 0,
+        "fps": 10.0,
+        "alpha": 200.0,
+        "lambda_c": 120.0,
+        "fl": 0.07,
+        "fh": 3.0,
+        "buffer_size": 300,
+        "auto_tune_duration": 5
+    },
+    "gui_settings": {
+        "window_width": 1200,
+        "window_height": 800,
+        "graph_update_interval": 100,
+        "console_max_lines": 1000
+    },
+    "processing_settings": {
+        "roi_min_size": 50,
+        "gaussian_blur_kernel": [5, 5],
+        "optical_flow_params": {
+            "pyr_scale": 0.5,
+            "levels": 3,
+            "winsize": 15,
+            "iterations": 3,
+            "poly_n": 5,
+            "poly_sigma": 1.2,
+            "flags": 0
+        }
+    },
+    "file_settings": {
+        "csv_output_dir": "historiales",
+        "csv_filename_format": "vibration_history_%Y%m%d_%H%M%S.csv",
+        "auto_save": true
+    }
+}
