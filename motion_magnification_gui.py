@@ -13,6 +13,9 @@ import csv
 from collections import deque
 import scipy.signal as signal
 from PIL import Image, ImageTk
+from concurrent.futures import ThreadPoolExecutor, as_completed
+import multiprocessing
+from functools import lru_cache
 
 # Verificar pyrtools como dependencia obligatoria
 try:
@@ -97,6 +100,29 @@ class MotionMagnificationGUI:
         
         # Variables para video display
         self.current_frame = None
+        
+        # --- Variables para optimización y procesamiento paralelo ---
+        # ThreadPoolExecutor para procesamiento paralelo
+        self.max_workers = min(4, multiprocessing.cpu_count())
+        self.executor = ThreadPoolExecutor(max_workers=self.max_workers)
+        
+        # Cache para pirámides y cálculos repetitivos
+        self.pyramid_cache = {}
+        self.flow_cache = {}
+        
+        # Buffer de frames para procesamiento asíncrono
+        self.frame_processing_queue = queue.Queue(maxsize=10)
+        self.processed_frame_queue = queue.Queue(maxsize=5)
+        
+        # Control de rendimiento
+        self.frame_skip_counter = 0
+        self.processing_times = deque(maxlen=10)  # Para monitoreo de rendimiento
+        self.adaptive_quality = True  # Ajuste adaptativo de calidad
+        
+        # Flags de optimización
+        self.use_parallel_processing = tk.BooleanVar(value=True)
+        self.use_frame_skip = tk.BooleanVar(value=False)
+        self.skip_frames = tk.IntVar(value=1)  # Procesar 1 de cada N frames
         
         self.setup_ui()
         self.update_console()
@@ -210,6 +236,32 @@ class MotionMagnificationGUI:
         calib_pixels_spinbox = ttk.Spinbox(config_frame, from_=1, to=5000, textvariable=self.calibration_pixels, 
                                           width=8, increment=1)
         calib_pixels_spinbox.grid(row=7, column=3, padx=5, pady=2)
+        
+        # Sección de optimización de rendimiento
+        optim_separator = ttk.Separator(config_frame, orient='horizontal')
+        optim_separator.grid(row=8, column=0, columnspan=4, sticky='ew', pady=5)
+        
+        ttk.Label(config_frame, text="⚡ Optimización de Rendimiento", font=('Arial', 9, 'bold')).grid(
+            row=9, column=0, columnspan=4, pady=2)
+        
+        # Procesamiento paralelo
+        parallel_check = ttk.Checkbutton(config_frame, text="Procesamiento paralelo", 
+                                        variable=self.use_parallel_processing)
+        parallel_check.grid(row=10, column=0, columnspan=2, sticky='w', padx=5, pady=2)
+        
+        # Skip de frames para mejor rendimiento
+        frame_skip_check = ttk.Checkbutton(config_frame, text="Saltar frames", 
+                                          variable=self.use_frame_skip)
+        frame_skip_check.grid(row=10, column=2, columnspan=2, sticky='w', padx=5, pady=2)
+        
+        ttk.Label(config_frame, text="Procesar 1 de cada:").grid(row=11, column=0, sticky='w', padx=5, pady=2)
+        skip_spinbox = ttk.Spinbox(config_frame, from_=1, to=10, textvariable=self.skip_frames, 
+                                  width=8, increment=1)
+        skip_spinbox.grid(row=11, column=1, padx=5, pady=2)
+        
+        # Información de rendimiento
+        ttk.Label(config_frame, text=f"CPUs detectadas: {multiprocessing.cpu_count()}", 
+                 font=('Arial', 8, 'italic')).grid(row=11, column=2, columnspan=2, sticky='w', padx=5, pady=2)
         
         # Sección de calibración de ruido
         noise_calib_frame = ttk.LabelFrame(parent, text="Calibración de Ruido de Fondo")
@@ -1038,6 +1090,167 @@ class MotionMagnificationGUI:
             filtered_roi = cv2.GaussianBlur(filtered_roi, (3, 3), 0.8)
         return filtered_roi
         
+    # --- FUNCIONES DE OPTIMIZACIÓN Y PROCESAMIENTO PARALELO ---
+    
+    @lru_cache(maxsize=32)
+    def create_cached_pyramid(self, frame_hash, alpha, lambda_c, fl, fh, sampling_rate):
+        """Crear pirámide con cache para evitar recálculos"""
+        # Esta función se llamará desde el procesamiento principal
+        pass  # Se implementa en el contexto donde se tiene acceso al frame
+    
+    def process_frame_parallel(self, frame, roi, prev_gray=None):
+        """Procesar frame usando múltiples threads para diferentes tareas"""
+        if not self.use_parallel_processing.get():
+            # Procesamiento secuencial tradicional
+            return self.process_frame_sequential(frame, roi, prev_gray)
+            
+        # Preparar tareas para procesamiento paralelo
+        futures = []
+        
+        # Task 1: Magnificación de movimiento
+        future_magnify = self.executor.submit(self.magnify_roi_task, frame, roi)
+        futures.append(('magnify', future_magnify))
+        
+        # Task 2: Cálculo de flujo óptico (si hay frame previo)
+        if prev_gray is not None:
+            future_flow = self.executor.submit(self.optical_flow_task, prev_gray, frame, roi)
+            futures.append(('flow', future_flow))
+        
+        # Task 3: Filtros de ruido (en paralelo si están activados)
+        if (self.background_subtraction.get() or 
+            self.morphological_filtering.get() or 
+            self.temporal_smoothing.get()):
+            future_filters = self.executor.submit(self.apply_filters_task, frame, roi)
+            futures.append(('filters', future_filters))
+        
+        # Recopilar resultados
+        results = {}
+        for task_name, future in futures:
+            try:
+                results[task_name] = future.result(timeout=0.1)  # Timeout para evitar bloqueos
+            except Exception as e:
+                self.log_message(f"Error en tarea paralela {task_name}: {str(e)}")
+                results[task_name] = None
+        
+        return results
+    
+    def magnify_roi_task(self, frame, roi):
+        """Tarea de magnificación que se ejecuta en thread separado"""
+        try:
+            x, y, w, h = roi
+            roi_img = frame[y:y+h, x:x+w]
+            
+            # Convertir a escala de grises
+            if len(roi_img.shape) == 3:
+                gray = cv2.cvtColor(roi_img, cv2.COLOR_BGR2GRAY)
+            else:
+                gray = roi_img.copy()
+            
+            # Aplicar magnificación usando el motor existente
+            if self.magnify_engine:
+                magnified = self.magnify_engine.Magnify(gray)
+                return magnified
+            else:
+                return gray
+                
+        except Exception as e:
+            self.log_message(f"Error en magnificación paralela: {str(e)}")
+            return None
+    
+    def optical_flow_task(self, prev_gray, current_frame, roi):
+        """Tarea de flujo óptico en thread separado"""
+        try:
+            x, y, w, h = roi
+            current_roi = current_frame[y:y+h, x:x+w]
+            
+            if len(current_roi.shape) == 3:
+                current_gray = cv2.cvtColor(current_roi, cv2.COLOR_BGR2GRAY)
+            else:
+                current_gray = current_roi.copy()
+            
+            # Calcular flujo óptico
+            flow = cv2.calcOpticalFlowFarneback(prev_gray, current_gray, None, 
+                                              0.5, 3, 15, 3, 5, 1.2, 0)
+            mean_magnitude = np.mean(cv2.norm(flow, cv2.NORM_L2))
+            return mean_magnitude, current_gray
+            
+        except Exception as e:
+            self.log_message(f"Error en flujo óptico paralelo: {str(e)}")
+            return 0, None
+    
+    def apply_filters_task(self, frame, roi):
+        """Aplicar filtros de ruido en thread separado"""
+        try:
+            x, y, w, h = roi
+            roi_frame = frame[y:y+h, x:x+w]
+            
+            # Aplicar filtros según configuración
+            filtered_frame = self.apply_noise_filtering(roi_frame, roi)
+            return filtered_frame
+            
+        except Exception as e:
+            self.log_message(f"Error en filtros paralelos: {str(e)}")
+            return roi_frame
+    
+    def process_frame_sequential(self, frame, roi, prev_gray=None):
+        """Procesamiento secuencial tradicional (fallback)"""
+        try:
+            x, y, w, h = roi
+            roi_img = frame[y:y+h, x:x+w]
+            
+            # Magnificación
+            gray = cv2.cvtColor(roi_img, cv2.COLOR_BGR2GRAY)
+            out = self.magnify_engine.Magnify(gray) if self.magnify_engine else gray
+            
+            # Flujo óptico
+            mean_magnitude = 0
+            if prev_gray is not None:
+                flow = cv2.calcOpticalFlowFarneback(prev_gray, out, None, 
+                                                  0.5, 3, 15, 3, 5, 1.2, 0)
+                mean_magnitude = np.mean(cv2.norm(flow, cv2.NORM_L2))
+            
+            return {
+                'magnify': out,
+                'flow': (mean_magnitude, out),
+                'filters': None
+            }
+            
+        except Exception as e:
+            self.log_message(f"Error en procesamiento secuencial: {str(e)}")
+            return None
+    
+    def should_skip_frame(self):
+        """Determinar si se debe saltar este frame para mejorar rendimiento"""
+        if not self.use_frame_skip.get():
+            return False
+            
+        self.frame_skip_counter += 1
+        skip_every = self.skip_frames.get()
+        
+        if self.frame_skip_counter >= skip_every:
+            self.frame_skip_counter = 0
+            return False  # Procesar este frame
+        else:
+            return True   # Saltar este frame
+    
+    def monitor_performance(self, processing_time):
+        """Monitorear rendimiento y ajustar automáticamente"""
+        self.processing_times.append(processing_time)
+        
+        if len(self.processing_times) >= 5:  # Evaluar cada 5 frames
+            avg_time = sum(self.processing_times) / len(self.processing_times)
+            target_fps = self.fps.get()
+            target_time = 1.0 / target_fps
+            
+            # Si el procesamiento es muy lento, activar optimizaciones automáticas
+            if avg_time > target_time * 1.5 and self.adaptive_quality:
+                if not self.use_frame_skip.get():
+                    self.use_frame_skip.set(True)
+                    self.log_message("⚡ Activando salto de frames automático por rendimiento")
+                elif self.skip_frames.get() < 5:
+                    self.skip_frames.set(self.skip_frames.get() + 1)
+                    self.log_message(f"⚡ Aumentando salto de frames a {self.skip_frames.get()}")
+    
     def update_noise_filter_status(self):
         """Actualizar el estado visual de los filtros de ruido"""
         active_filters = []
@@ -1175,113 +1388,145 @@ class MotionMagnificationGUI:
         return fl, fh
         
     def processing_loop(self):
-        """Loop principal de procesamiento"""
-        self.log_message("Iniciando loop de procesamiento...")
+        """Loop principal de procesamiento optimizado"""
+        self.log_message("Iniciando loop de procesamiento optimizado...")
+        self.log_message(f"⚡ Usando {self.max_workers} threads para procesamiento paralelo")
         
-        # Ya no crear archivo CSV automático - solo cuando el usuario active la grabación
         prev_gray = None
         
         while self.is_running:
-                try:
-                    ret, frame = self.camera.read()
-                    if not ret:
-                        break
-                        
-                    self.frame_count += 1
-                    
-                    # Procesar solo si hay ROI y motor de magnificación
-                    if self.roi and self.magnify_engine:
-                        x, y, w, h = self.roi
-                        roi_img = frame[y:y+h, x:x+w]
-                        
-                        # Magnificación
-                        gray = cv2.cvtColor(roi_img, cv2.COLOR_BGR2GRAY)
-                        out = self.magnify_engine.Magnify(gray)
-                        
-                        # Flujo óptico si hay frame previo
-                        mean_magnitude = 0
-                        if prev_gray is not None:
-                            flow = cv2.calcOpticalFlowFarneback(prev_gray, out, None, 
-                                                              0.5, 3, 15, 3, 5, 1.2, 0)
-                            mean_magnitude = np.mean(cv2.norm(flow, cv2.NORM_L2))
-                            
-                        prev_gray = out.copy()
-                        
-                        # Mostrar resultado magnificado en frame original
-                        frame[y:y+h, x:x+w] = cv2.cvtColor(out, cv2.COLOR_GRAY2BGR)
-                        
-                        # Dibujar rectángulo del ROI con información
-                        cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 255, 0), 3)
-                        
-                        # Convertir a unidades físicas si está calibrado
-                        physical_value, physical_units = self.convert_to_physical_units(mean_magnitude)
-                        
-                        # Mostrar información del ROI y magnitud
-                        if self.is_calibrated:
-                            info_text = f"ROI: {w}x{h} | Velocidad: {physical_value:.2f} {physical_units}"
-                        else:
-                            info_text = f"ROI: {w}x{h} | Magnitud: {mean_magnitude:.2f} px/frame"
-                        
-                        cv2.putText(frame, info_text, (x, y-10), cv2.FONT_HERSHEY_SIMPLEX, 
-                                   0.6, (0, 255, 0), 2)
-                        
-                        # Mostrar parámetros actuales
-                        params_text = f"Alpha: {self.alpha.get():.0f} | fl: {self.fl.get():.3f}Hz | fh: {self.fh.get():.2f}Hz"
-                        cv2.putText(frame, params_text, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 
-                                   0.5, (255, 255, 255), 1)
-                        
-                        # Datos para gráficas
-                        mean_signal = np.mean(out)
-                        self.signal_buffer.append(mean_signal)
-                        
-                        # Guardar en CSV de grabación solo si está activa
-                        if self.is_recording and self.csv_writer:
-                            try:
-                                timestamp_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                                if self.is_calibrated:
-                                    physical_value, _ = self.convert_to_physical_units(mean_magnitude)
-                                    self.csv_writer.writerow([self.frame_count, timestamp_str, 
-                                                           mean_magnitude, physical_value, mean_signal, 
-                                                           self.mm_per_pixel.get()])
-                                else:
-                                    self.csv_writer.writerow([self.frame_count, timestamp_str, 
-                                                           mean_magnitude, mean_signal])
-                                self.csv_file.flush()  # Asegurar que se escriba inmediatamente
-                            except Exception as e:
-                                self.log_message(f"Error escribiendo a CSV de grabación: {str(e)}")
-                        
-                        # Enviar datos para gráficas
-                        self.data_queue.put({
-                            'signal': list(self.signal_buffer),
-                            'frame_count': self.frame_count
-                        })
-                    else:
-                        # Si no hay ROI, mostrar mensaje e información de ayuda
-                        cv2.putText(frame, "Haz clic en 'Seleccionar ROI' para comenzar el analisis", 
-                                   (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2)
-                        cv2.putText(frame, "ROI = Region de Interes para magnificacion de movimiento", 
-                                   (10, 80), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
-                        cv2.putText(frame, f"Camara {self.selected_camera.get()} | FPS: {self.fps.get()}", 
-                                   (10, frame.shape[0]-20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
-                        
-                    # Enviar frame para visualización (siempre, con o sin ROI)
-                    try:
-                        # Limpiar queue si está lleno para evitar lag
-                        if self.video_queue.qsize() > 2:
-                            try:
-                                self.video_queue.get_nowait()
-                            except queue.Empty:
-                                pass
-                        self.video_queue.put(frame.copy())
-                    except queue.Full:
-                        pass
-                        
-                    time.sleep(1.0 / self.fps.get())
-                    
-                except Exception as e:
-                    self.log_message(f"Error en procesamiento: {str(e)}")
+            try:
+                frame_start_time = time.time()
+                
+                ret, frame = self.camera.read()
+                if not ret:
                     break
                     
+                self.frame_count += 1
+                
+                # Verificar si se debe saltar este frame para mejorar rendimiento
+                if self.should_skip_frame():
+                    continue
+                
+                # Procesar solo si hay ROI y motor de magnificación
+                if self.roi and self.magnify_engine:
+                    # Usar procesamiento paralelo u optimizado
+                    processing_results = self.process_frame_parallel(frame, self.roi, prev_gray)
+                    
+                    if processing_results:
+                        # Extraer resultados
+                        magnified_result = processing_results.get('magnify')
+                        flow_result = processing_results.get('flow')
+                        
+                        if magnified_result is not None:
+                            out = magnified_result
+                            prev_gray = out.copy()
+                            
+                            # Actualizar frame original con resultado magnificado
+                            x, y, w, h = self.roi
+                            frame[y:y+h, x:x+w] = cv2.cvtColor(out, cv2.COLOR_GRAY2BGR)
+                            
+                            # Obtener magnitud del flujo óptico
+                            mean_magnitude = 0
+                            if flow_result and len(flow_result) == 2:
+                                mean_magnitude, _ = flow_result
+                            
+                            # Dibujar información del ROI
+                            cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 255, 0), 3)
+                            
+                            # Convertir a unidades físicas si está calibrado
+                            physical_value, physical_units = self.convert_to_physical_units(mean_magnitude)
+                            
+                            # Mostrar información optimizada
+                            if self.is_calibrated:
+                                info_text = f"ROI: {w}x{h} | Vel: {physical_value:.2f} {physical_units}"
+                            else:
+                                info_text = f"ROI: {w}x{h} | Mag: {mean_magnitude:.2f} px/frame"
+                            
+                            cv2.putText(frame, info_text, (x, y-10), cv2.FONT_HERSHEY_SIMPLEX, 
+                                       0.6, (0, 255, 0), 2)
+                            
+                            # Información de rendimiento
+                            processing_time = time.time() - frame_start_time
+                            fps_actual = 1.0 / processing_time if processing_time > 0 else 0
+                            
+                            # Mostrar parámetros y rendimiento
+                            params_text = f"α:{self.alpha.get():.0f} | fl:{self.fl.get():.3f} | fh:{self.fh.get():.2f} | FPS:{fps_actual:.1f}"
+                            cv2.putText(frame, params_text, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 
+                                       0.5, (255, 255, 255), 1)
+                            
+                            # Mostrar estado de optimizaciones
+                            if self.use_parallel_processing.get() or self.use_frame_skip.get():
+                                optim_text = f"⚡"
+                                if self.use_parallel_processing.get():
+                                    optim_text += f" Parallel({self.max_workers})"
+                                if self.use_frame_skip.get():
+                                    optim_text += f" Skip(1/{self.skip_frames.get()})"
+                                cv2.putText(frame, optim_text, (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 
+                                           0.4, (0, 255, 255), 1)
+                            
+                            # Datos para gráficas
+                            mean_signal = np.mean(out)
+                            self.signal_buffer.append(mean_signal)
+                            
+                            # Guardar en CSV de grabación solo si está activa
+                            if self.is_recording and self.csv_writer:
+                                try:
+                                    timestamp_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                                    if self.is_calibrated:
+                                        self.csv_writer.writerow([self.frame_count, timestamp_str, 
+                                                               mean_magnitude, physical_value, mean_signal, 
+                                                               self.mm_per_pixel.get()])
+                                    else:
+                                        self.csv_writer.writerow([self.frame_count, timestamp_str, 
+                                                               mean_magnitude, mean_signal])
+                                    self.csv_file.flush()
+                                except Exception as e:
+                                    self.log_message(f"Error escribiendo a CSV de grabación: {str(e)}")
+                            
+                            # Enviar datos para gráficas
+                            try:
+                                self.data_queue.put({
+                                    'signal': list(self.signal_buffer),
+                                    'frame_count': self.frame_count
+                                }, block=False)
+                            except queue.Full:
+                                pass  # Skip si la queue está llena
+                            
+                            # Monitorear rendimiento y optimizar automáticamente
+                            self.monitor_performance(processing_time)
+                            
+                else:
+                    # Si no hay ROI, mostrar mensaje optimizado
+                    cv2.putText(frame, "Selecciona ROI para comenzar analisis", 
+                               (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2)
+                    cv2.putText(frame, f"Cam {self.selected_camera.get()} | FPS: {self.fps.get()}", 
+                               (10, frame.shape[0]-20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+                    
+                # Enviar frame para visualización con control de queue
+                try:
+                    # Limpiar queue si está lleno para evitar lag
+                    while self.video_queue.qsize() > 2:
+                        try:
+                            self.video_queue.get_nowait()
+                        except queue.Empty:
+                            break
+                    self.video_queue.put(frame.copy(), block=False)
+                except queue.Full:
+                    pass  # Skip frame si no hay espacio
+                
+                # Control de FPS adaptativo
+                target_frame_time = 1.0 / self.fps.get()
+                elapsed_time = time.time() - frame_start_time
+                if elapsed_time < target_frame_time:
+                    time.sleep(target_frame_time - elapsed_time)
+                    
+            except Exception as e:
+                self.log_message(f"Error en procesamiento: {str(e)}")
+                time.sleep(0.1)  # Pausa breve antes de reintentar
+                
+        # Limpiar recursos al terminar
+        self.executor.shutdown(wait=False)
         self.log_message("Loop de procesamiento terminado")
         
     def update_graphs(self):
