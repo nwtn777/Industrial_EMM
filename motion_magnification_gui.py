@@ -48,6 +48,10 @@ class MotionMagnificationGUI:
         self.mm_per_pixel = tk.DoubleVar(value=0.1)  # mm por píxel (calibrar)
         self.is_calibrated = False
         self.calibration_distance_mm = tk.DoubleVar(value=10.0)  # distancia conocida en mm
+        
+        # Variables para filtro FFT de frecuencias bajas
+        self.fft_highpass_enabled = tk.BooleanVar(value=False)  # Activar/desactivar filtro
+        self.fft_cutoff_freq = tk.DoubleVar(value=0.5)  # Frecuencia de corte en Hz
         self.calibration_pixels = tk.IntVar(value=100)  # píxeles correspondientes
         
         # Queue para comunicación entre threads
@@ -177,22 +181,35 @@ class MotionMagnificationGUI:
                                 width=8, increment=0.1, format="%.2f")
         fh_spinbox.grid(row=2, column=3, padx=5, pady=2)
         
+        # Filtro FFT de frecuencias bajas
+        ttk.Label(config_frame, text="🔽 Filtro FFT:", font=('Arial', 8, 'bold')).grid(
+            row=3, column=0, columnspan=2, sticky='w', padx=5, pady=2)
+        
+        fft_filter_check = ttk.Checkbutton(config_frame, text="Filtrar freq. bajas", 
+                                          variable=self.fft_highpass_enabled)
+        fft_filter_check.grid(row=3, column=2, columnspan=2, sticky='w', padx=5, pady=2)
+        
+        ttk.Label(config_frame, text="Corte (Hz):").grid(row=4, column=0, sticky='w', padx=5, pady=2)
+        cutoff_spinbox = ttk.Spinbox(config_frame, from_=0.1, to=10, textvariable=self.fft_cutoff_freq, 
+                                   width=8, increment=0.1, format="%.1f")
+        cutoff_spinbox.grid(row=4, column=1, padx=5, pady=2)
+        
         # Calibración física
         calib_separator = ttk.Separator(config_frame, orient='horizontal')
-        calib_separator.grid(row=3, column=0, columnspan=4, sticky='ew', pady=5)
+        calib_separator.grid(row=5, column=0, columnspan=4, sticky='ew', pady=5)
         
         ttk.Label(config_frame, text="📏 Calibración Física", font=('Arial', 9, 'bold')).grid(
-            row=4, column=0, columnspan=4, pady=2)
+            row=6, column=0, columnspan=4, pady=2)
         
-        ttk.Label(config_frame, text="Dist. real (mm):").grid(row=5, column=0, sticky='w', padx=5, pady=2)
+        ttk.Label(config_frame, text="Dist. real (mm):").grid(row=7, column=0, sticky='w', padx=5, pady=2)
         calib_dist_spinbox = ttk.Spinbox(config_frame, from_=1, to=1000, textvariable=self.calibration_distance_mm, 
                                         width=8, increment=1, format="%.1f")
-        calib_dist_spinbox.grid(row=5, column=1, padx=5, pady=2)
+        calib_dist_spinbox.grid(row=7, column=1, padx=5, pady=2)
         
-        ttk.Label(config_frame, text="Píxeles:").grid(row=5, column=2, sticky='w', padx=5, pady=2)
+        ttk.Label(config_frame, text="Píxeles:").grid(row=7, column=2, sticky='w', padx=5, pady=2)
         calib_pixels_spinbox = ttk.Spinbox(config_frame, from_=1, to=5000, textvariable=self.calibration_pixels, 
                                           width=8, increment=1)
-        calib_pixels_spinbox.grid(row=5, column=3, padx=5, pady=2)
+        calib_pixels_spinbox.grid(row=7, column=3, padx=5, pady=2)
         
         # Sección de calibración de ruido
         noise_calib_frame = ttk.LabelFrame(parent, text="Calibración de Ruido de Fondo")
@@ -1136,6 +1153,13 @@ class MotionMagnificationGUI:
         fft_vals = np.abs(np.fft.rfft(signal_arr))
         freqs = np.fft.rfftfreq(len(signal_arr), d=1.0/fps)
         
+        # Aplicar filtro paso alto si está habilitado para el análisis
+        if self.fft_highpass_enabled.get():
+            cutoff = self.fft_cutoff_freq.get()
+            cutoff_idx = np.searchsorted(freqs, cutoff)
+            if cutoff_idx > 0:
+                fft_vals[:cutoff_idx] = 0  # Suprimir frecuencias bajas para análisis
+        
         peaks, _ = find_peaks(fft_vals[1:], height=np.max(fft_vals[1:]) * 0.2)
         peaks = peaks + 1  # ignorar DC
         
@@ -1154,24 +1178,10 @@ class MotionMagnificationGUI:
         """Loop principal de procesamiento"""
         self.log_message("Iniciando loop de procesamiento...")
         
-        # Crear archivo CSV para historial
-        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-        csv_filename = f"historiales/vibration_history_{timestamp}.csv"
+        # Ya no crear archivo CSV automático - solo cuando el usuario active la grabación
+        prev_gray = None
         
-        os.makedirs("historiales", exist_ok=True)
-        
-        with open(csv_filename, mode='w', newline='') as csv_file:
-            csv_writer = csv.writer(csv_file)
-            # Agregar headers para unidades físicas
-            if self.is_calibrated:
-                csv_writer.writerow(["frame", "timestamp", "mean_magnitude_px_frame", 
-                                   "velocity_mm_s", "mean_signal", "mm_per_pixel"])
-            else:
-                csv_writer.writerow(["frame", "timestamp", "mean_magnitude_px_frame", "mean_signal"])
-            
-            prev_gray = None
-            
-            while self.is_running:
+        while self.is_running:
                 try:
                     ret, frame = self.camera.read()
                     if not ret:
@@ -1224,20 +1234,10 @@ class MotionMagnificationGUI:
                         mean_signal = np.mean(out)
                         self.signal_buffer.append(mean_signal)
                         
-                        # Guardar en CSV automático para historial
-                        timestamp_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                        if self.is_calibrated:
-                            physical_value, _ = self.convert_to_physical_units(mean_magnitude)
-                            csv_writer.writerow([self.frame_count, timestamp_str, 
-                                               mean_magnitude, physical_value, mean_signal, 
-                                               self.mm_per_pixel.get()])
-                        else:
-                            csv_writer.writerow([self.frame_count, timestamp_str, 
-                                               mean_magnitude, mean_signal])
-                        
-                        # Guardar en CSV de grabación si está activa
+                        # Guardar en CSV de grabación solo si está activa
                         if self.is_recording and self.csv_writer:
                             try:
+                                timestamp_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                                 if self.is_calibrated:
                                     physical_value, _ = self.convert_to_physical_units(mean_magnitude)
                                     self.csv_writer.writerow([self.frame_count, timestamp_str, 
@@ -1303,9 +1303,31 @@ class MotionMagnificationGUI:
                         fft_vals = np.abs(np.fft.rfft(signal_arr))
                         freqs = np.fft.rfftfreq(len(signal_arr), d=1.0/self.fps.get())
                         
-                        self.line2.set_data(freqs[1:], fft_vals[1:])  # Excluir DC
-                        self.ax2.set_xlim(0, max(freqs))
-                        self.ax2.set_ylim(0, max(fft_vals[1:]) if len(fft_vals) > 1 else 1)
+                        # Aplicar filtro paso alto si está habilitado
+                        if self.fft_highpass_enabled.get():
+                            cutoff = self.fft_cutoff_freq.get()
+                            # Encontrar índice de frecuencia de corte
+                            cutoff_idx = np.searchsorted(freqs, cutoff)
+                            if cutoff_idx > 0:
+                                # Crear máscara de filtro paso alto
+                                fft_vals_filtered = fft_vals.copy()
+                                fft_vals_filtered[:cutoff_idx] = 0  # Suprimir frecuencias bajas
+                                self.line2.set_data(freqs[1:], fft_vals_filtered[1:])  # Excluir DC
+                                self.ax2.set_xlim(cutoff, max(freqs))  # Ajustar vista para mostrar desde frecuencia de corte
+                                if len(fft_vals_filtered[cutoff_idx:]) > 0:
+                                    self.ax2.set_ylim(0, max(fft_vals_filtered[cutoff_idx:]))
+                                else:
+                                    self.ax2.set_ylim(0, 1)
+                            else:
+                                # Si cutoff es muy alto, mostrar todo el espectro
+                                self.line2.set_data(freqs[1:], fft_vals[1:])
+                                self.ax2.set_xlim(0, max(freqs))
+                                self.ax2.set_ylim(0, max(fft_vals[1:]) if len(fft_vals) > 1 else 1)
+                        else:
+                            # Sin filtro, mostrar todo el espectro
+                            self.line2.set_data(freqs[1:], fft_vals[1:])  # Excluir DC
+                            self.ax2.set_xlim(0, max(freqs))
+                            self.ax2.set_ylim(0, max(fft_vals[1:]) if len(fft_vals) > 1 else 1)
                         
                         # Actualizar etiqueta del eje Y según calibración
                         if self.is_calibrated:

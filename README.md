@@ -91,11 +91,13 @@ Esta organización facilita el monitoreo y ajuste de parámetros sin perder de v
 
 ## 📊 **Salida de Datos y Monitoreo**
 
-### Archivos de Histórico
-Los datos se guardan automáticamente en:
-- **Ubicación**: `historiales/vibration_history_YYYYMMDD_HHMMSS.csv`
+### Grabación Manual de Datos CSV
+Los datos se graban **únicamente cuando el usuario lo decide**:
+- **Control Manual**: Los archivos CSV solo se crean al presionar "🔴 Iniciar Grabación"
+- **Ubicación**: `historiales/vibration_recording_YYYYMMDD_HHMMSS.csv`
 - **Contenido**: frame, timestamp, magnitud media, señal de vibración
 - **Formato**: CSV compatible con Excel y herramientas de análisis
+- **Control Total**: El usuario decide exactamente cuándo grabar datos
 
 ### Métricas en Tiempo Real
 - **Magnitud de vibración**: Valor RMS de la señal detectada
@@ -173,6 +175,102 @@ Para usar esta función correctamente:
 
 El sistema recolectará datos durante unos segundos y optimizará automáticamente los parámetros fl y fh.
 
+## 🔽 Filtro de Frecuencias Bajas en FFT
+
+### 📋 Descripción
+
+Se ha implementado una nueva funcionalidad mejorada en el GUI que permite filtrar las frecuencias bajas en la visualización del espectro FFT. Esta característica resuelve el problema común donde las frecuencias muy bajas dominan la escala del gráfico, impidiendo observar con claridad las vibraciones de interés en frecuencias más altas.
+
+### 🎯 Problema Resuelto
+
+**Problema original:**
+- Las frecuencias muy bajas (deriva, ruido de baja frecuencia, componente DC) crean picos dominantes en el espectro FFT
+- Estos picos comprimen visualmente el resto del espectro
+- Dificulta la identificación de vibraciones industriales relevantes (típicamente > 0.5 Hz)
+- Reduce la resolución visual para el análisis de frecuencias de interés
+
+**Solución implementada:**
+- Control de filtro configurable en tiempo real con checkbox activable/desactivable
+- Filtrado inteligente para visualización con ajuste automático de escala
+- Integración con la función de auto-ajuste de frecuencias
+- Mejora significativa en la claridad del espectro
+- Identificación más fácil de picos de vibración relevantes
+
+### 🛠️ Controles en el GUI
+
+Se han agregado nuevos controles en la sección de configuración:
+
+```
+🔽 Filtro FFT:
+☐ Filtrar freq. bajas    Corte (Hz): [0.5]
+```
+
+#### Componentes:
+1. **Checkbox "Filtrar freq. bajas"**: Activa/desactiva el filtro
+2. **Control "Corte (Hz)"**: Define la frecuencia de corte (0.1 - 10 Hz)
+
+### 📊 Casos de Uso Recomendados
+
+#### Monitoreo de Maquinaria Industrial
+
+| Tipo de Equipo | Frecuencia de Corte Sugerida | Justificación |
+|----------------|------------------------------|---------------|
+| Motores eléctricos | 0.5 - 1.0 Hz | Elimina deriva térmica |
+| Bombas centrífugas | 0.3 Hz | Preserva frecuencias de cavitación |
+| Compresores | 0.6 Hz | Enfoca en frecuencias de operación |
+| Ventiladores | 0.4 Hz | Reduce ruido de baja frecuencia |
+| Transmisiones | 1.0 - 2.0 Hz | Enfoca en frecuencias de engranajes |
+
+#### Análisis de Vibraciones Estructurales
+
+| Aplicación | Frecuencia de Corte Sugerida | Justificación |
+|------------|------------------------------|---------------|
+| Edificios/Puentes | 0.1 - 0.3 Hz | Preserva frecuencias naturales |
+| Torres/Antenas | 0.2 - 0.5 Hz | Reduce deriva del viento |
+| Plataformas | 0.5 - 1.0 Hz | Enfoca en vibraciones operacionales |
+
+### 📈 Resultados Esperados
+
+#### Antes del Filtrado
+- Pico dominante en frecuencias muy bajas (< 0.5 Hz)
+- Compresión visual del espectro de interés
+- Dificultad para identificar picos relevantes
+- Escala automática dominada por frecuencias bajas
+
+#### Después del Filtrado
+- Eliminación de picos de baja frecuencia no relevantes
+- Mejor resolución visual en el rango de frecuencias de interés
+- Identificación más clara de patrones de vibración
+- Escala optimizada para el análisis
+
+### ⚠️ Consideraciones Importantes
+
+#### Lo que NO hace el filtro
+- **No modifica el procesamiento interno** de Motion Magnification
+- **No afecta los parámetros fl y fh** del algoritmo principal
+- **No altera los datos guardados** en los archivos CSV
+- **Solo mejora la visualización** del espectro FFT
+
+#### Recomendaciones de Uso
+1. **Comience con el filtro desactivado** para ver el espectro completo
+2. **Active y ajuste gradualmente** hasta encontrar el balance óptimo
+3. **Use valores conservadores** (0.3-0.8 Hz) para la mayoría de aplicaciones
+4. **Documente el valor usado** para comparaciones futuras
+
+### 🧪 Cómo Usar el Filtro FFT
+
+#### Pasos Básicos
+1. **Iniciar** la aplicación normalmente
+2. **Localizar** la sección "🔽 Filtro FFT" en los controles de configuración
+3. **Activar** marcando el checkbox "Filtrar freq. bajas"
+4. **Ajustar** la frecuencia de corte según necesidad (valor recomendado: 0.5 Hz)
+5. **Observar** la mejora en la visualización del espectro FFT
+
+#### Integración con Otras Funciones
+- **Auto-ajuste de frecuencias**: Considera solo frecuencias por encima del corte
+- **Calibración física**: Las unidades físicas (mm/s) se mantienen correctas
+- **Grabación de datos**: Los datos CSV incluyen información del filtro usado
+
 ## Solución de Problemas
 
 ### Error: "No se pudo abrir la cámara"
@@ -221,13 +319,13 @@ El sistema recolectará datos durante unos segundos y optimizará automáticamen
 | **Threading** | Básico | Avanzado, no bloqueante |
 | **Configuración** | Manual | Auto-tune inteligente |
 
-# 📝 Funcionalidad de Grabación CSV - Documentación
+# 📝 Funcionalidad de Grabación CSV - Control Manual
 
-## 🎯 Resumen de Cambios
+## 🎯 Resumen de Funcionalidad
 
-Se han agregado controles de grabación manual al sistema de Motion Magnification GUI que permiten al usuario iniciar y detener la grabación de datos al archivo CSV de forma independiente del monitoreo general.
+El sistema de Motion Magnification GUI incluye controles de grabación manual que permiten al usuario iniciar y detener la grabación de datos CSV de forma completamente controlada. **No se crean archivos automáticamente** - los datos solo se graban cuando el usuario explícitamente presiona el botón de grabación.
 
-## 🔧 Nuevas Características
+## 🔧 Características de Control Manual
 
 ### 1. **Botones de Grabación**
 - **🔴 Iniciar Grabación**: Comienza a escribir datos de vibración a un archivo CSV específico
@@ -248,18 +346,14 @@ self.recording_filename = ""      # Nombre del archivo de grabación actual
 
 ## 🔄 Funcionamiento
 
-### Sistema Dual de CSV
-El sistema ahora mantiene **dos tipos de archivos CSV**:
+### Control Completo del Usuario
+El sistema ahora opera con **control total del usuario**:
 
-1. **CSV de Historial** (automático):
-   - Se crea automáticamente al iniciar el monitoreo
-   - Archivo: `historiales/vibration_history_YYYYMMDD_HHMMSS.csv`
-   - Funciona continuamente mientras el sistema está corriendo
-
-2. **CSV de Grabación** (manual):
-   - Se crea solo cuando el usuario presiona "Iniciar Grabación"
-   - Archivo: `historiales/vibration_recording_YYYYMMDD_HHMMSS.csv`
-   - El usuario controla cuándo empieza y termina
+- **Archivo de Grabación** (solo manual):
+  - Se crea **únicamente** cuando el usuario presiona "🔴 Iniciar Grabación"
+  - Archivo: `historiales/vibration_recording_YYYYMMDD_HHMMSS.csv`
+  - El usuario controla completamente cuándo empieza y termina
+  - **No hay grabación automática** en ningún momento
 
 ### Flujo de Trabajo
 1. **Iniciar Sistema**: Usuario presiona "▶ Iniciar" → se habilitan controles de grabación
@@ -303,28 +397,30 @@ frame,timestamp,mean_magnitude_px_frame,velocity_mm_s,mean_signal,mm_per_pixel
 ## 📂 Ubicación de Archivos
 
 Todos los archivos CSV se guardan en el directorio `historiales/`:
-- **Historial automático**: `vibration_history_YYYYMMDD_HHMMSS.csv`
-- **Grabación manual**: `vibration_recording_YYYYMMDD_HHMMSS.csv`
+- **Grabación manual únicamente**: `vibration_recording_YYYYMMDD_HHMMSS.csv`
+- **Control total del usuario**: Los archivos solo se crean cuando el usuario decide grabar
 
 ## 🚀 Casos de Uso
 
-### 1. **Análisis Continuo**
-- Dejar el sistema corriendo con historial automático
-- Usar grabación manual solo para eventos específicos
+### 1. **Monitoreo Sin Grabación**
+- Usar el sistema solo para visualización en tiempo real
+- No se crean archivos CSV automáticamente
+- Observar gráficas y análisis sin almacenamiento
 
-### 2. **Grabación de Eventos**
+### 2. **Grabación de Eventos Específicos**
 - Iniciar grabación manual antes de un evento esperado
 - Detener grabación después del evento
-- Mantener archivos separados por evento
+- Mantener archivos separados por evento específico
 
 ### 3. **Experimentos Controlados**
 - Múltiples grabaciones durante una sesión
 - Cada grabación corresponde a una condición experimental diferente
+- Control preciso sobre qué datos se almacenan
 
-### 4. **Entorno Industrial con Ruido Ambiental**
-- Utilizar la calibración de ruido de fondo con la máquina apagada
-- Establecer el modelo de ruido base
-- Iniciar monitoreo para detectar solo las vibraciones reales de la máquina
+### 4. **Análisis de Datos Selectivo**
+- Grabar solo los períodos de interés
+- Evitar llenado innecesario de disco
+- Mantener únicamente datos relevantes
 
 ## ⚙️ Integración con Funciones Existentes
 
@@ -353,6 +449,28 @@ Todos los archivos CSV se guardan en el directorio `historiales/`:
 - [ ] Análisis estadístico automático
 - [ ] Calibración asistida por wizard
 - [ ] Soporte para webcams IP
+
+## 🆕 **Funcionalidades Recientes (Agosto 2025)**
+
+### 🔽 Filtro FFT de Frecuencias Bajas ✅
+- **Nuevo control**: Checkbox + frecuencia de corte configurable
+- **Mejora visual**: Elimina frecuencias bajas que dominan el espectro
+- **Integración completa**: Compatible con auto-ajuste y calibración
+- **Casos de uso**: Optimizado para maquinaria industrial (motores, bombas, ventiladores)
+- **Valores recomendados**: 0.3-0.8 Hz según aplicación
+
+### 📝 Control Manual de Grabación CSV ✅
+- **Eliminada grabación automática**: No más archivos CSV no deseados
+- **Control total del usuario**: Grabación solo cuando se presiona el botón
+- **Mejor experiencia**: Sin llenado innecesario de disco
+- **Privacidad mejorada**: Datos solo cuando el usuario decide
+- **Flujo simplificado**: Un solo tipo de archivo CSV (grabación manual)
+
+### 🎯 Beneficios de las Nuevas Funcionalidades
+- **Mejor visualización**: FFT más claro y útil para análisis industrial
+- **Control total**: Usuario decide exactamente cuándo grabar datos
+- **Eficiencia mejorada**: Menos archivos, mejor rendimiento
+- **Experiencia optimizada**: Interfaz más intuitiva y responsive
 
 ## 🤝 **Contribuciones y Desarrollo**
 
