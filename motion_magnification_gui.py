@@ -235,7 +235,7 @@ class MotionMagnificationGUI:
         self.start_button = ttk.Button(button_row1, text="▶ Iniciar", command=self.start_monitoring)
         self.start_button.pack(side='left', padx=5)
         
-        self.start_no_calib_button = ttk.Button(button_row1, text="▶ Iniciar Sin Calibración", 
+        self.start_no_calib_button = ttk.Button(button_row1, text="▶ Iniciar Sin Calibración de Ruido", 
                                               command=lambda: self.start_monitoring(use_calibration=False))
         self.start_no_calib_button.pack(side='left', padx=5)
         
