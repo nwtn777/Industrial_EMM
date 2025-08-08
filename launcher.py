@@ -87,9 +87,6 @@ class DependencyChecker:
                                        command=self.install_missing, bg='orange')
         self.install_button.pack(side='left', padx=5)
         
-        self.demo_button = tk.Button(button_frame, text="Ejecutar Demo", 
-                                    command=self.run_demo, bg='lightblue')
-        self.demo_button.pack(side='left', padx=5)
         
         self.full_button = tk.Button(button_frame, text="Ejecutar GUI Completa", 
                                     command=self.run_full_gui, bg='lightgreen')
@@ -196,14 +193,6 @@ class DependencyChecker:
         self.tree.delete(*self.tree.get_children())
         self.check_all_dependencies()
         
-    def run_demo(self):
-        """Ejecutar demo simplificado"""
-        self.log_info("Ejecutando demo...")
-        try:
-            subprocess.Popen([sys.executable, "demo_gui.py"])
-            self.log_info("Demo iniciado en proceso separado.")
-        except Exception as e:
-            messagebox.showerror("Error", f"No se pudo ejecutar el demo:\n{str(e)}")
             
     def run_full_gui(self):
         """Ejecutar GUI completa"""
