@@ -46,6 +46,11 @@ class MotionMagnificationGUI:
         self.lambda_c = tk.DoubleVar(value=120.0)
         self.fl = tk.DoubleVar(value=0.07)
         self.fh = tk.DoubleVar(value=3.0)
+
+        # Añadimos estas variables para evitar el error, pero no las usaremos para saltar frames
+        self.use_frame_skip = tk.BooleanVar(value=False)
+        self.skip_frames = tk.IntVar(value=1)  # 1 significa no saltar ningún frame
+        self.frame_skip_counter = 0
         
         # Variables para calibración física
         self.mm_per_pixel = tk.DoubleVar(value=0.1)  # mm por píxel (calibrar)
@@ -115,14 +120,11 @@ class MotionMagnificationGUI:
         self.processed_frame_queue = queue.Queue(maxsize=5)
         
         # Control de rendimiento
-        self.frame_skip_counter = 0
         self.processing_times = deque(maxlen=10)  # Para monitoreo de rendimiento
         self.adaptive_quality = True  # Ajuste adaptativo de calidad
         
         # Flags de optimización
         self.use_parallel_processing = tk.BooleanVar(value=True)
-        self.use_frame_skip = tk.BooleanVar(value=False)
-        self.skip_frames = tk.IntVar(value=1)  # Procesar 1 de cada N frames
         
         self.setup_ui()
         self.update_console()
@@ -249,19 +251,9 @@ class MotionMagnificationGUI:
                                         variable=self.use_parallel_processing)
         parallel_check.grid(row=10, column=0, columnspan=2, sticky='w', padx=5, pady=2)
         
-        # Skip de frames para mejor rendimiento
-        frame_skip_check = ttk.Checkbutton(config_frame, text="Saltar frames", 
-                                          variable=self.use_frame_skip)
-        frame_skip_check.grid(row=10, column=2, columnspan=2, sticky='w', padx=5, pady=2)
-        
-        ttk.Label(config_frame, text="Procesar 1 de cada:").grid(row=11, column=0, sticky='w', padx=5, pady=2)
-        skip_spinbox = ttk.Spinbox(config_frame, from_=1, to=10, textvariable=self.skip_frames, 
-                                  width=8, increment=1)
-        skip_spinbox.grid(row=11, column=1, padx=5, pady=2)
-        
         # Información de rendimiento
         ttk.Label(config_frame, text=f"CPUs detectadas: {multiprocessing.cpu_count()}", 
-                 font=('Arial', 8, 'italic')).grid(row=11, column=2, columnspan=2, sticky='w', padx=5, pady=2)
+                 font=('Arial', 8, 'italic')).grid(row=10, column=2, columnspan=2, sticky='w', padx=5, pady=2)
         
         # Sección de calibración de ruido
         noise_calib_frame = ttk.LabelFrame(parent, text="Calibración de Ruido de Fondo")
@@ -1220,18 +1212,8 @@ class MotionMagnificationGUI:
             return None
     
     def should_skip_frame(self):
-        """Determinar si se debe saltar este frame para mejorar rendimiento"""
-        if not self.use_frame_skip.get():
-            return False
-            
-        self.frame_skip_counter += 1
-        skip_every = self.skip_frames.get()
-        
-        if self.frame_skip_counter >= skip_every:
-            self.frame_skip_counter = 0
-            return False  # Procesar este frame
-        else:
-            return True   # Saltar este frame
+        """Eliminada la funcionalidad de saltar frames - siempre procesar todos los frames"""
+        return False
     
     def monitor_performance(self, processing_time):
         """Monitorear rendimiento y ajustar automáticamente"""
@@ -1240,7 +1222,7 @@ class MotionMagnificationGUI:
         if len(self.processing_times) >= 5:  # Evaluar cada 5 frames
             avg_time = sum(self.processing_times) / len(self.processing_times)
             target_fps = self.fps.get()
-            target_time = 1.0 / target_fps
+            target_time = 1.0 / target_fps;
             
             # Si el procesamiento es muy lento, activar optimizaciones automáticas
             if avg_time > target_time * 1.5 and self.adaptive_quality:
@@ -1396,7 +1378,7 @@ class MotionMagnificationGUI:
         
         while self.is_running:
             try:
-                frame_start_time = time.time()
+                frame_start_time = time.time();
                 
                 ret, frame = self.camera.read()
                 if not ret:
@@ -1447,7 +1429,7 @@ class MotionMagnificationGUI:
                                        0.6, (0, 255, 0), 2)
                             
                             # Información de rendimiento
-                            processing_time = time.time() - frame_start_time
+                            processing_time = time.time() - frame_start_time;
                             fps_actual = 1.0 / processing_time if processing_time > 0 else 0
                             
                             # Mostrar parámetros y rendimiento
@@ -1580,14 +1562,16 @@ class MotionMagnificationGUI:
                             self.ax2.set_title("📈 Espectro de Velocidad (FFT)")
                         else:
                             self.ax2.set_ylabel("Magnitud (px/frame)")
-                            self.ax2.set_title("📈 Espectro de Magnitudes (FFT)")
+                            self.ax2.set_title("📈 Espectro de Frecuencias (FFT)")
+                        
+                    # Redibujar gráficas
+                    self.canvas.draw()
                     
-                self.canvas.draw()
-                
         except queue.Empty:
             pass
-            
-        if self.is_running and self.root.winfo_exists():
+        
+        # Programar siguiente actualización solo si la ventana está activa
+        if self.root.winfo_exists():
             self.root.after(100, self.update_graphs)
 
 
@@ -1681,7 +1665,7 @@ class Magnify(object):
         output[output > 1] = 1
         output = img_as_ubyte(output)
         return output
-
+    
 
 if __name__ == "__main__":
     root = tk.Tk()
