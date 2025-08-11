@@ -13,8 +13,8 @@ En la pestaña de video y gráficas, el video se muestra a la izquierda y las gr
 ## Características Principales
 
 - Visualización de video en tiempo real con selección de ROI y datos superpuestos.
-- Control interactivo de parámetros (FPS, Alpha, Lambda_c, fl, fh).
-- Gráficas en vivo: señal de vibración y espectro FFT.
+- Control interactivo de parámetros (FPS, Alpha, Lambda_c, fl, fh) **editables en todo momento, incluso tras detener el monitoreo**.
+- Gráficas en vivo: señal de vibración (basada en flujo óptico, no brillo) y espectro FFT.
 - Consola integrada para logs y eventos.
 - Auto-tune de frecuencias y guardado automático de históricos.
 
@@ -68,13 +68,16 @@ python src/motion_magnification_gui.py
 ## Uso
 
 ### Inicio Rápido
+
+### Flujo flexible de monitoreo
 1. **Seleccionar Cámara**: Elegir el índice de cámara deseado (generalmente 0 para la cámara principal)
-2. **Configurar Parámetros**: Ajustar FPS, Alpha, Lambda_c según las necesidades
+2. **Configurar Parámetros**: Ajustar FPS, Alpha, Lambda_c, fl, fh según las necesidades (puedes cambiar estos parámetros en cualquier momento mientras el monitoreo está detenido)
 3. **Iniciar Monitoreo**: 
-   - Opción 1: Hacer clic en "▶ Iniciar" para usar calibración de ruido (recomendado)
-   - Opción 2: Hacer clic en "▶ Iniciar Sin Calibración" para omitir la calibración de ruido
+  - Opción 1: Hacer clic en "▶ Iniciar" para usar calibración de ruido (recomendado)
+  - Opción 2: Hacer clic en "▶ Iniciar Sin Calibración" para omitir la calibración de ruido
 4. **Seleccionar ROI**: Clic en "Seleccionar ROI" y dibujar un rectángulo sobre la zona a monitorear
 5. **Auto-tune (Opcional)**: Usar "Auto-tune Freq" para optimización automática de filtros
+6. **Detener Monitoreo**: Puedes detener el monitoreo, cambiar parámetros y volver a iniciar el monitoreo y seleccionar un nuevo ROI, sin necesidad de cerrar el programa.
 
 
 ### Pestañas de la Interfaz
@@ -100,7 +103,7 @@ Los datos se graban **únicamente cuando el usuario lo decide**:
 - **Control Total**: El usuario decide exactamente cuándo grabar datos
 
 ### Métricas en Tiempo Real
-- **Magnitud de vibración**: Valor RMS de la señal detectada
+- **Magnitud de vibración**: Calculada a partir del flujo óptico (movimiento real de píxeles, independiente del brillo)
 - **Espectro de frecuencias**: Análisis FFT actualizado continuamente
 - **Detección de picos**: Identificación automática de frecuencias dominantes
 - **Tendencias temporales**: Evolución de la señal a lo largo del tiempo
@@ -504,6 +507,7 @@ frame,timestamp,mean_magnitude_px_frame,velocity_mm_s,mean_signal,mm_per_pixel
 3. **Flush inmediato**: Los datos se escriben inmediatamente al archivo para evitar pérdida
 4. **Validación de estado**: Los botones solo se activan cuando es apropiado
 5. **Modos de inicio**: Opción para iniciar con o sin calibración de ruido de fondo
+6. **Cierre seguro**: Al cerrar la ventana del GUI, el programa se detiene completamente (no quedan procesos colgados)
 
 ## 📂 Ubicación de Archivos
 
