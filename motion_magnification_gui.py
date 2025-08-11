@@ -57,11 +57,11 @@ class MotionMagnificationGUI:
         self.camera = None
         self.is_running = False
         self.selected_camera = tk.IntVar(value=0)
-        self.fps = tk.DoubleVar(value=10.0)
-        self.alpha = tk.DoubleVar(value=200.0)
-        self.lambda_c = tk.DoubleVar(value=120.0)
-        self.fl = tk.DoubleVar(value=0.07)
-        self.fh = tk.DoubleVar(value=3.0)
+        self.fps = tk.DoubleVar(value=20.0)
+        self.alpha = tk.DoubleVar(value=100.0)
+        self.lambda_c = tk.DoubleVar(value=50.0)
+        self.fl = tk.DoubleVar(value=0.5)
+        self.fh = tk.DoubleVar(value=9)
 
         # Añadimos estas variables para evitar el error, pero no las usaremos para saltar frames
         self.use_frame_skip = tk.BooleanVar(value=False)
