@@ -1,83 +1,77 @@
 
-# 🖥️ Motion Magnification GUI - Sistema Avanzado de Monitoreo de Vibraciones
+# � Motion Magnification GUI para Análisis de Vibraciones Industriales
 
-## 📖 Descripción
+**Versión:** 1.4.0 (Agosto 2025)
 
-**Motion Magnification GUI** es una aplicación de escritorio avanzada para el análisis y monitoreo de vibraciones industriales en tiempo real. Utiliza técnicas de magnificación de movimiento basadas en pirámides Laplacianas para detectar y amplificar movimientos sutiles imperceptibles al ojo humano, convirtiéndose en una herramienta esencial para mantenimiento predictivo y control de calidad en entornos industriales.
+**Autor:** [@nwtn777](https://github.com/nwtn777)
 
-La interfaz gráfica moderna ahora está organizada en pestañas:
+**Repositorio:** [motion_magnification](https://github.com/nwtn777/motion_magnification)
+
+## 🚀 Descripción General
+
+Interfaz gráfica avanzada para análisis de vibraciones mediante magnificación de movimiento en video. Permite monitoreo, grabación manual, análisis FFT, selección de ROI, auto-tune de frecuencias, calibración física y filtrado avanzado, todo en tiempo real y con procesamiento paralelo optimizado. Ahora la señal de vibración se calcula a partir del **flujo óptico** (no del brillo), los parámetros principales pueden editarse dinámicamente, y el programa se cierra completamente al salir del GUI.
+
+La interfaz gráfica está organizada en pestañas:
 - **Pestaña 1:** Configuración de parámetros y consola de eventos.
 - **Pestaña 2:** Video en tiempo real y gráficas de vibración/FFT.
 En la pestaña de video y gráficas, el video se muestra a la izquierda y las gráficas a la derecha para una visualización más intuitiva.
 
-## Características Principales
+## 🖥️ Requisitos
 
-- Visualización de video en tiempo real con selección de ROI y datos superpuestos.
-- Control interactivo de parámetros (FPS, Alpha, Lambda_c, fl, fh) **editables en todo momento, incluso tras detener el monitoreo**.
-- Gráficas en vivo: señal de vibración (basada en flujo óptico, no brillo) y espectro FFT.
-- Consola integrada para logs y eventos.
-- Auto-tune de frecuencias y guardado automático de históricos.
+- Python 3.10+
+- Windows 10/11 (recomendado) o Linux
+- Dependencias: ver `requirements_gui.txt`
+- Cámara web compatible (USB o integrada)
+- Recomendado: CPU multinúcleo
 
+## ⚡ Instalación Rápida
 
-## 🎯 **Aplicaciones Industriales**
+1. Clona el repositorio:
+  ```bash
+  git clone https://github.com/nwtn777/motion_magnification.git
+  ```
+2. Instala dependencias:
+  ```bash
+  pip install -r requirements_gui.txt
+  ```
+3. Ejecuta la GUI:
+  ```bash
+  python motion_magnification_gui.py
+  ```
 
-- **Mantenimiento Predictivo**: Detección temprana de fallos en rodamientos, motores y maquinaria rotativa
-- **Control de Calidad**: Monitoreo continuo de vibraciones en líneas de producción
-- **Análisis Estructural**: Evaluación de integridad en estructuras y equipos críticos
-- **Investigación y Desarrollo**: Análisis detallado de fenómenos vibratorios complejos
-- **Diagnóstico de Equipos**: Identificación de patrones anómalos en tiempo real
+## 🧩 Principales Funcionalidades
 
-## 🔧 **Tecnologías Clave**
-
-- **Pirámides Laplacianas**: Algoritmo optimizado para magnificación de movimientos sutiles
-- **Análisis FFT en Tiempo Real**: Procesamiento espectral instantáneo con `scipy.signal`
-- **Threading Avanzado**: Procesamiento paralelo para máximo rendimiento
-- **Interfaz Matplotlib Integrada**: Visualización profesional de datos en tiempo real
-
-## 🚀 **Instalación y Configuración**
-
-**⚠️ IMPORTANTE: pyrtools es una dependencia OBLIGATORIA para el funcionamiento completo**
-
-### Instalación Automática (Recomendada)
-```bash
-python launcher.py
-```
-El launcher verificará automáticamente todas las dependencias y las instalará si es necesario.
-
-### Instalación Manual
-1. Instalar dependencias básicas:
-```bash
-pip install -r requirements_gui.txt
-```
-
-2. Verificar que pyrtools esté funcionando:
-```bash
-python src/check_pyrtools.py
-```
-
-3. Ejecutar la aplicación:
-```bash
-python src/motion_magnification_gui.py
-```
+- Magnificación de movimiento en video (Eulerian Video Magnification)
+- Análisis FFT en tiempo real
+- Selección de ROI interactivo
+- Grabación manual de datos CSV (sin grabación automática)
+- Auto-tune de frecuencias de interés
+- Calibración física (mm/pixel)
+- Filtros avanzados (FFT, morfológicos, suavizado)
+- Procesamiento paralelo optimizado (ThreadPoolExecutor)
+- Señal de vibración basada en **flujo óptico** (no brillo)
+- Edición dinámica de parámetros principales (cámara, alpha, lambda, fl, fh)
+- Control total del usuario sobre grabación y monitoreo
+- Cierre seguro: el programa se detiene completamente al cerrar la ventana (sin procesos colgados)
 
 ### **Alternativas si pyrtools falla:**
 - Instalar desde GitHub: `pip install https://github.com/LabForComputationalVision/pyrtools/archive/main.zip`
 - Para pruebas básicas sin pyrtools: `python src/demo_gui.py`
 - Usar conda: `conda install -c conda-forge pyrtools`
 
-## Uso
 
-### Inicio Rápido
+## 🖱️ Uso Básico y Flujo Flexible
 
-### Flujo flexible de monitoreo
-1. **Seleccionar Cámara**: Elegir el índice de cámara deseado (generalmente 0 para la cámara principal)
-2. **Configurar Parámetros**: Ajustar FPS, Alpha, Lambda_c, fl, fh según las necesidades (puedes cambiar estos parámetros en cualquier momento mientras el monitoreo está detenido)
-3. **Iniciar Monitoreo**: 
-  - Opción 1: Hacer clic en "▶ Iniciar" para usar calibración de ruido (recomendado)
-  - Opción 2: Hacer clic en "▶ Iniciar Sin Calibración" para omitir la calibración de ruido
-4. **Seleccionar ROI**: Clic en "Seleccionar ROI" y dibujar un rectángulo sobre la zona a monitorear
-5. **Auto-tune (Opcional)**: Usar "Auto-tune Freq" para optimización automática de filtros
-6. **Detener Monitoreo**: Puedes detener el monitoreo, cambiar parámetros y volver a iniciar el monitoreo y seleccionar un nuevo ROI, sin necesidad de cerrar el programa.
+1. **Seleccionar Cámara**: Elige el índice de cámara deseado (0, 1, 2...).
+2. **Configurar Parámetros**: Ajusta alpha, lambda, fl, fh (solo editables cuando el monitoreo está detenido).
+3. **Iniciar Monitoreo**: Presiona "▶ Iniciar" (con o sin calibración de ruido de fondo).
+4. **Seleccionar ROI**: Haz clic en "Seleccionar ROI" y dibuja el área de interés.
+5. **Auto-tune (Opcional)**: Usa "Auto-tune Freq" para sugerir frecuencias óptimas.
+6. **Editar Filtro FFT y Calibración**: Estos controles pueden editarse en cualquier momento, incluso durante el monitoreo.
+7. **Iniciar/Detener Grabación**: Presiona "🔴 Iniciar Grabación" para guardar datos CSV manualmente. Detén la grabación cuando lo desees.
+8. **Detener Monitoreo**: Puedes detener el monitoreo, cambiar parámetros principales y volver a iniciar el monitoreo y seleccionar un nuevo ROI, sin cerrar el programa.
+9. **Cerrar la ventana**: El programa se detiene completamente (sin procesos colgados).
+
 
 
 ### Pestañas de la Interfaz
@@ -85,106 +79,65 @@ python src/motion_magnification_gui.py
 - **Configuración y Consola:**
   - Configuración de todos los parámetros y controles principales
   - Consola de eventos y mensajes del sistema
-
 - **Video y Gráficas:**
-  - El video en tiempo real se muestra a la izquierda
-  - Las gráficas (señal de vibración y FFT) se muestran a la derecha
+  - Video en tiempo real a la izquierda
+  - Gráficas de señal de vibración (flujo óptico) y FFT a la derecha
 
 Esta organización facilita el monitoreo y ajuste de parámetros sin perder de vista el análisis visual y gráfico.
 
-## 📊 **Salida de Datos y Monitoreo**
+
+## 📊 Grabación y Monitoreo de Datos
 
 ### Grabación Manual de Datos CSV
-Los datos se graban **únicamente cuando el usuario lo decide**:
-- **Control Manual**: Los archivos CSV solo se crean al presionar "🔴 Iniciar Grabación"
-- **Ubicación**: `historiales/vibration_recording_YYYYMMDD_HHMMSS.csv`
-- **Contenido**: frame, timestamp, magnitud media, señal de vibración
-- **Formato**: CSV compatible con Excel y herramientas de análisis
-- **Control Total**: El usuario decide exactamente cuándo grabar datos
+- Los datos solo se graban cuando el usuario presiona "🔴 Iniciar Grabación".
+- Los archivos se guardan en `historiales/vibration_recording_YYYYMMDD_HHMMSS.csv`.
+- El usuario tiene control total: puede iniciar/detener grabación en cualquier momento durante el monitoreo.
+- El formato CSV incluye: frame, timestamp, mean_magnitude_px_frame, velocity_mm_s (si calibrado), mean_signal, mm_per_pixel.
 
 ### Métricas en Tiempo Real
-- **Magnitud de vibración**: Calculada a partir del flujo óptico (movimiento real de píxeles, independiente del brillo)
-- **Espectro de frecuencias**: Análisis FFT actualizado continuamente
-- **Detección de picos**: Identificación automática de frecuencias dominantes
-- **Tendencias temporales**: Evolución de la señal a lo largo del tiempo
+- **Magnitud de vibración**: Calculada a partir del flujo óptico (no brillo).
+- **Espectro de frecuencias**: Análisis FFT actualizado continuamente.
+- **Detección de picos**: Identificación automática de frecuencias dominantes.
+- **Tendencias temporales**: Evolución de la señal a lo largo del tiempo.
 
-## Controles de Teclado (en ventanas OpenCV)
+
+## ⌨️ Controles de Teclado (en ventanas OpenCV)
 
 - **ESC**: Salir del monitoreo
 - **R**: Re-seleccionar ROI durante el monitoreo
 
 
-## Parámetros Técnicos
 
-### Alpha (Factor de Magnificación)
-- **Rango**: 1-1000
-- **Típico**: 200
-- **Efecto**: Mayor valor = mayor magnificación de movimientos
+## ⚙️ Parámetros Técnicos y Auto-tune
 
-### FPS (Fotogramas por Segundo)
-- **Rango**: 1-60
-- **Típico**: 10
-- **Efecto**: Velocidad de procesamiento y muestreo
+### Parámetros Principales
+- **Alpha**: Nivel de magnificación (5-50 típico)
+- **Lambda**: Longitud de onda base (10-100 típico)
+- **fl**: Frecuencia baja (0.1-2.0 Hz típico)
+- **fh**: Frecuencia alta (1.0-10.0 Hz típico)
+- **Cámara**: Selección de dispositivo (0, 1, 2...)
 
-### Lambda_c (Corte de Longitud de Onda)
-- **Rango**: 1-500
-- **Típico**: 120
-- **Efecto**: Filtro espacial para diferentes escalas de movimiento
-
-### Frecuencias (fl, fh)
-- **fl (Baja)**: 0.01-10 Hz
-- **fh (Alta)**: 0.1-20 Hz
-- **Efecto**: Filtros temporales para aislar frecuencias de interés
-
-### Uso del Botón Auto-tune
-El botón **⚙️ Auto-tune** ajusta automáticamente los parámetros fl y fh analizando la señal del ROI seleccionado. Se recomienda usarlo en los siguientes casos:
-
-- **Al iniciar un nuevo análisis**: Cuando acabas de seleccionar un ROI y no conoces las frecuencias de vibración dominantes.
-- **Al cambiar de máquina o componente**: Diferentes equipos tienen distintos patrones de vibración y frecuencias características.
-- **Cuando cambian las condiciones operativas**: Si la máquina modifica su velocidad, carga de trabajo o condiciones ambientales.
-- **Si no ves resultados claros**: Cuando el análisis no muestra patrones definidos con los parámetros actuales.
-- **Para buscar vibraciones específicas**: El auto-ajuste detecta las frecuencias dominantes, permitiéndote enfocarte en las más significativas.
-
-Para usar esta función correctamente:
-1. Inicia el monitoreo (botón "▶ Iniciar")
-2. Selecciona un ROI (botón "🎯 Seleccionar ROI") 
+### Auto-tune
+El botón **⚙️ Auto-tune** ajusta automáticamente los parámetros fl y fh analizando la señal del ROI seleccionado. Recomendado al iniciar un nuevo análisis, cambiar de máquina, o si no ves resultados claros.
+1. Inicia el monitoreo
+2. Selecciona un ROI
 3. Haz clic en "⚙️ Auto-tune"
+El sistema recolecta datos y optimiza fl y fh automáticamente.
 
-El sistema recolectará datos durante unos segundos y optimizará automáticamente los parámetros fl y fh.
 
-## 🔽 Filtro de Frecuencias Bajas en FFT
+## 🔽 Filtro FFT de Frecuencias Bajas
 
-### 📋 Descripción
-
-Se ha implementado una nueva funcionalidad mejorada en el GUI que permite filtrar las frecuencias bajas en la visualización del espectro FFT. Esta característica resuelve el problema común donde las frecuencias muy bajas dominan la escala del gráfico, impidiendo observar con claridad las vibraciones de interés en frecuencias más altas.
-
-### 🎯 Problema Resuelto
-
-**Problema original:**
-- Las frecuencias muy bajas (deriva, ruido de baja frecuencia, componente DC) crean picos dominantes en el espectro FFT
-- Estos picos comprimen visualmente el resto del espectro
-- Dificulta la identificación de vibraciones industriales relevantes (típicamente > 0.5 Hz)
-- Reduce la resolución visual para el análisis de frecuencias de interés
-
-**Solución implementada:**
-- Control de filtro configurable en tiempo real con checkbox activable/desactivable
-- Filtrado inteligente para visualización con ajuste automático de escala
-- Integración con la función de auto-ajuste de frecuencias
-- Mejora significativa en la claridad del espectro
-- Identificación más fácil de picos de vibración relevantes
-
-### 🛠️ Controles en el GUI
-
-Se han agregado nuevos controles en la sección de configuración:
+Permite filtrar frecuencias bajas en la visualización del espectro FFT para mejorar la claridad y el análisis de vibraciones industriales. El filtro es configurable en tiempo real (checkbox y campo de frecuencia de corte) y solo afecta la visualización, no el procesamiento interno ni los datos grabados.
 
 ```
+
 🔽 Filtro FFT:
 ☐ Filtrar freq. bajas    Corte (Hz): [0.5]
-```
 
-#### Componentes:
+Componentes:
 1. **Checkbox "Filtrar freq. bajas"**: Activa/desactiva el filtro
 2. **Control "Corte (Hz)"**: Define la frecuencia de corte (0.1 - 10 Hz)
+
 
 ### 📊 Casos de Uso Recomendados
 
@@ -206,6 +159,7 @@ Se han agregado nuevos controles en la sección de configuración:
 | Torres/Antenas | 0.2 - 0.5 Hz | Reduce deriva del viento |
 | Plataformas | 0.5 - 1.0 Hz | Enfoca en vibraciones operacionales |
 
+
 ### 📈 Resultados Esperados
 
 #### Antes del Filtrado
@@ -219,6 +173,7 @@ Se han agregado nuevos controles en la sección de configuración:
 - Mejor resolución visual en el rango de frecuencias de interés
 - Identificación más clara de patrones de vibración
 - Escala optimizada para el análisis
+
 
 ### ⚠️ Consideraciones Importantes
 
@@ -234,6 +189,7 @@ Se han agregado nuevos controles en la sección de configuración:
 3. **Use valores conservadores** (0.3-0.8 Hz) para la mayoría de aplicaciones
 4. **Documente el valor usado** para comparaciones futuras
 
+
 ### 🧪 Cómo Usar el Filtro FFT
 
 #### Pasos Básicos
@@ -248,7 +204,8 @@ Se han agregado nuevos controles en la sección de configuración:
 - **Calibración física**: Las unidades físicas (mm/s) se mantienen correctas
 - **Grabación de datos**: Los datos CSV incluyen información del filtro usado
 
-## Solución de Problemas
+
+## 🛠️ Solución de Problemas
 
 ### Error: "No se pudo abrir la cámara"
 - Verificar que la cámara esté conectada
@@ -269,7 +226,8 @@ Se han agregado nuevos controles en la sección de configuración:
 - Aumentar el nivel de filtrado en la sección de Filtrado de Ruido
 - Activar los filtros morfológicos y de suavizado temporal
 
-## 🏗️ **Arquitectura y Rendimiento**
+
+## 🏗️ Arquitectura y Rendimiento
 
 ### Diseño Técnico
 - **Framework GUI**: Tkinter con diseño modular y responsive
@@ -283,6 +241,7 @@ Se han agregado nuevos controles en la sección de configuración:
 - **Buffer circular**: Gestión eficiente de memoria para datos en tiempo real
 - **ROI adaptativo**: Procesamiento focalizado para reducir carga computacional
 - **Auto-escalado**: Ajuste automático de parámetros según capacidad del sistema
+
 
 # 🚀 Optimización con Procesamiento en Paralelo
 
@@ -407,7 +366,8 @@ from functools import lru_cache
 | **Threading** | Básico | Avanzado, no bloqueante |
 | **Configuración** | Manual | Auto-tune inteligente |
 
-# 📝 Funcionalidad de Grabación CSV - Control Manual
+
+# 📝 Grabación Manual de Datos CSV
 
 ## 🎯 Resumen de Funcionalidad
 
@@ -450,6 +410,7 @@ El sistema ahora opera con **control total del usuario**:
 4. **Detener Grabación**: Usuario presiona "⏺ Detener Grabación" → CSV se guarda y cierra
 5. **Repetir**: Se puede iniciar/detener grabación múltiples veces durante una sesión
 
+
 ## 📊 Formato de Datos CSV
 
 ### Sin Calibración Física:
@@ -466,6 +427,7 @@ frame,timestamp,mean_magnitude_px_frame,velocity_mm_s,mean_signal,mm_per_pixel
 2,2025-08-07 14:30:16,2.67,13.45,129.1,0.1
 ```
 
+
 ## 🎮 Estados de los Botones
 
 | Estado del Sistema | Iniciar Grabación | Detener Grabación |
@@ -473,6 +435,7 @@ frame,timestamp,mean_magnitude_px_frame,velocity_mm_s,mean_signal,mm_per_pixel
 | Sistema detenido  | Deshabilitado     | Deshabilitado    |
 | Sistema corriendo | Habilitado        | Deshabilitado    |
 | Grabando          | Deshabilitado     | Habilitado       |
+
 
 ## 🛡️ Características de Seguridad
 
@@ -483,11 +446,13 @@ frame,timestamp,mean_magnitude_px_frame,velocity_mm_s,mean_signal,mm_per_pixel
 5. **Modos de inicio**: Opción para iniciar con o sin calibración de ruido de fondo
 6. **Cierre seguro**: Al cerrar la ventana del GUI, el programa se detiene completamente (no quedan procesos colgados)
 
+
 ## 📂 Ubicación de Archivos
 
 Todos los archivos CSV se guardan en el directorio `historiales/`:
 - **Grabación manual únicamente**: `vibration_recording_YYYYMMDD_HHMMSS.csv`
 - **Control total del usuario**: Los archivos solo se crean cuando el usuario decide grabar
+
 
 ## 🚀 Casos de Uso
 
@@ -511,6 +476,7 @@ Todos los archivos CSV se guardan en el directorio `historiales/`:
 - Evitar llenado innecesario de disco
 - Mantener únicamente datos relevantes
 
+
 ## ⚙️ Integración con Funciones Existentes
 
 - ✅ Compatible con calibración física
@@ -520,7 +486,8 @@ Todos los archivos CSV se guardan en el directorio `historiales/`:
 - ✅ Integrado con el sistema de logging
 - ✅ Respeta todos los parámetros de configuración existentes
 
-## 🔮 **Roadmap y Futuras Mejoras**
+
+## 🔮 Roadmap y Futuras Mejoras
 
 ### Próximas Versiones
 - [ ] **Vista previa integrada**: Video en tiempo real dentro de la GUI
