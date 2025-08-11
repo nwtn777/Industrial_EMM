@@ -539,9 +539,11 @@ Este proyecto está abierto a contribuciones. Para desarrolladores interesados:
 4. Push a la rama (`git push origin feature/nueva-funcionalidad`)
 5. Abre un Pull Request
 
+
 ## 📝 **Licencia y Contacto**
 
-- **Licencia**: MIT License
+- **Licencia**: [CC BY-NC 4.0 (Reconocimiento-NoComercial)](https://creativecommons.org/licenses/by-nc/4.0/)
+- **Uso permitido**: Académico, investigación y proyectos no comerciales. Prohibido el uso comercial sin autorización.
 - **Autor**: [@nwtn777](https://github.com/nwtn777)
 - **Repositorio**: [motion_magnification](https://github.com/nwtn777/motion_magnification)
 
