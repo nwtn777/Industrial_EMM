@@ -917,15 +917,20 @@ class MotionMagnificationGUI:
         try:
             x, y, w, h = roi
             current_roi = current_frame[y:y+h, x:x+w]
-            
             if len(current_roi.shape) == 3:
                 current_gray = cv2.cvtColor(current_roi, cv2.COLOR_BGR2GRAY)
             else:
                 current_gray = current_roi.copy()
-            
-            # Calcular flujo óptico
-            flow = cv2
-            
+
+            # prev_gray debe ser del mismo tamaño que current_gray
+            if prev_gray is not None and prev_gray.shape == current_gray.shape:
+                flow = cv2.calcOpticalFlowFarneback(prev_gray, current_gray, None, 
+                                                   0.5, 3, 15, 3, 5, 1.2, 0)
+                mag = np.linalg.norm(flow, axis=2)
+                mean_magnitude = np.mean(mag)
+                return mean_magnitude, current_gray
+            else:
+                return 0, current_gray
         except Exception as e:
             self.log_message(f"Error en flujo óptico paralelo: {str(e)}")
             return 0, None
@@ -1206,7 +1211,11 @@ class MotionMagnificationGUI:
                                            0.4, (0, 255, 255), 1)
                             
                             # Datos para gráficas
-                            mean_signal = np.mean(out)
+                            # Usar la magnitud promedio del flujo óptico como señal de vibración
+                            if flow_result and len(flow_result) == 2:
+                                mean_signal = flow_result[0]  # mean_magnitude
+                            else:
+                                mean_signal = 0
                             self.signal_buffer.append(mean_signal)
                             
                             # Guardar en CSV de grabación solo si está activa
