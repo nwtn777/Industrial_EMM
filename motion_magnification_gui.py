@@ -97,13 +97,6 @@ class MotionMagnificationGUI:
         self.roi = None
         self.magnify_engine = None
         
-        # Variables para calibración de ruido de fondo
-        self.noise_calibration_active = False  # Indica si está en modo calibración de ruido
-        self.noise_calibration_frames = []  # Frames capturados durante la calibración
-        self.noise_calibration_model = None  # Modelo de ruido de fondo calibrado
-        self.noise_calibration_count = 0  # Contador de frames durante calibración
-        self.noise_calibration_duration = tk.IntVar(value=5)  # Segundos para calibrar
-        self.use_noise_calibration = tk.BooleanVar(value=False)  # Activar/desactivar uso del modelo
         
         # --- Variables para filtrado de ruido en video ---
         # Nivel de reducción de ruido (controlado por el usuario)
@@ -271,35 +264,6 @@ class MotionMagnificationGUI:
         ttk.Label(config_frame, text=f"CPUs detectadas: {multiprocessing.cpu_count()}", 
                  font=('Arial', 8, 'italic')).grid(row=10, column=2, columnspan=2, sticky='w', padx=5, pady=2)
         
-        # Sección de calibración de ruido
-        noise_calib_frame = ttk.LabelFrame(parent, text="Calibración de Ruido de Fondo")
-        noise_calib_frame.pack(fill='x', padx=5, pady=5)
-        
-        ttk.Label(noise_calib_frame, text="⚠️ Para usar esta función, la máquina debe estar APAGADA", 
-                  font=('Arial', 8, 'italic'), foreground="red").pack(pady=2)
-        
-        calib_controls = ttk.Frame(noise_calib_frame)
-        calib_controls.pack(pady=5)
-        
-        ttk.Label(calib_controls, text="Duración (seg):").pack(side='left', padx=5)
-        duration_spinbox = ttk.Spinbox(calib_controls, from_=2, to=30, 
-                                    textvariable=self.noise_calibration_duration,
-                                    width=5, increment=1)
-        duration_spinbox.pack(side='left', padx=5)
-        
-        use_calib_check = ttk.Checkbutton(calib_controls, text="Usar calibración", 
-                                         variable=self.use_noise_calibration)
-        use_calib_check.pack(side='left', padx=20)
-        
-        calib_buttons = ttk.Frame(noise_calib_frame)
-        calib_buttons.pack(pady=5)
-        
-        self.calibrate_noise_button = ttk.Button(calib_buttons, text="🔧 Calibrar Ruido", 
-                                              command=self.start_noise_calibration)
-        self.calibrate_noise_button.pack(side='left', padx=5)
-        
-        self.noise_calib_status = ttk.Label(calib_buttons, text="No calibrado", foreground="orange")
-        self.noise_calib_status.pack(side='left', padx=5)
         
         # Botones de control
         button_frame = ttk.LabelFrame(parent, text="Controles de Monitoreo")
@@ -521,11 +485,9 @@ class MotionMagnificationGUI:
                 messagebox.showerror("Error", f"No se pudo abrir la cámara {camera_id}")
                 return
                 
-            # Establecer si se usa calibración de ruido
+            # Ya no se usa calibración de ruido
             if not use_calibration:
-                self.use_noise_calibration.set(False)
                 self.log_message("Iniciando sin calibración de ruido de fondo")
-                
             self.log_message(f"Cámara {camera_id} inicializada correctamente")
             
             # Actualizar estado visual
@@ -540,7 +502,7 @@ class MotionMagnificationGUI:
             self.calibrate_button.config(state='normal')
             self.measure_button.config(state='normal')
             self.record_button.config(state='normal')
-            self.calibrate_noise_button.config(state='disabled')
+            # self.calibrate_noise_button ya no existe
             
             self.is_running = True
             
@@ -588,7 +550,7 @@ class MotionMagnificationGUI:
         self.measure_button.config(state='disabled')
         self.record_button.config(state='disabled')
         self.stop_record_button.config(state='disabled')
-        self.calibrate_noise_button.config(state='normal')
+    # self.calibrate_noise_button ya no existe
         
         # Limpiar video display
         self.video_label.config(image="", text="📹 El video aparecerá aquí cuando inicies el monitoreo")
@@ -799,203 +761,6 @@ class MotionMagnificationGUI:
         if event == cv2.EVENT_LBUTTONDOWN:
             self.measure_points.append((x, y))
             
-    def start_noise_calibration(self):
-        """
-        Inicia el proceso de calibración de ruido de fondo.
-        Captura varios frames de la máquina apagada para crear un modelo de referencia.
-        """
-        if not self.camera:
-            try:
-                # Inicializar cámara temporalmente para calibración
-                camera_id = self.selected_camera.get()
-                self.camera = cv2.VideoCapture(camera_id)
-                if not self.camera.isOpened():
-                    messagebox.showerror("Error", f"No se pudo abrir la cámara {camera_id}")
-                    return
-                self.log_message("Cámara inicializada para calibración de ruido")
-                temporary_camera = True
-            except Exception as e:
-                messagebox.showerror("Error", f"Error al inicializar cámara: {str(e)}")
-                return
-        else:
-            temporary_camera = False
-            
-        try:
-            # Resetear variables de calibración
-            self.noise_calibration_active = True
-            self.noise_calibration_frames = []
-            self.noise_calibration_count = 0
-            duration = self.noise_calibration_duration.get()
-            total_frames = int(duration * self.fps.get())
-            
-            # Actualizar interfaz
-            self.calibrate_noise_button.config(state='disabled')
-            self.noise_calib_status.config(text=f"Calibrando... 0%", foreground="blue")
-            self.log_message(f"Iniciando calibración de ruido por {duration} segundos...")
-            
-            # Iniciar proceso de captura
-            self.capture_noise_frames(temporary_camera, total_frames)
-            
-        except Exception as e:
-            self.noise_calibration_active = False
-            if temporary_camera and self.camera:
-                self.camera.release()
-                self.camera = None
-            messagebox.showerror("Error", f"Error al iniciar calibración de ruido: {str(e)}")
-            self.log_message(f"Error en calibración de ruido: {str(e)}")
-            
-    def capture_noise_frames(self, temporary_camera, total_frames):
-        """Capturar frames para calibración de ruido de fondo"""
-        if not self.camera or not self.noise_calibration_active:
-            return
-            
-        try:
-            # Capturar un frame
-            ret, frame = self.camera.read()
-            if ret:
-                # Guardar frame en escala de grises
-                gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-                self.noise_calibration_frames.append(gray_frame)
-                self.noise_calibration_count += 1
-                
-                # Actualizar progreso
-                progress = (self.noise_calibration_count / total_frames) * 100
-                self.noise_calib_status.config(text=f"Calibrando... {progress:.0f}%", foreground="blue")
-                
-                # Mostrar vista previa
-                height, width = frame.shape[:2]
-                max_width, max_height = 500, 400
-                if width > max_width or height > max_height:
-                    scale = min(max_width/width, max_height/height)
-                    new_width = int(width * scale)
-                    new_height = int(height * scale)
-                    frame = cv2.resize(frame, (new_width, new_height))
-                
-                # Añadir texto indicando que es calibración de ruido
-                cv2.putText(frame, "CALIBRANDO RUIDO", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 
-                           0.7, (0, 0, 255), 2)
-                cv2.putText(frame, f"Frame {self.noise_calibration_count}/{total_frames}", (10, 60), 
-                           cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 255), 2)
-                
-                # Actualizar vista previa
-                frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                pil_image = Image.fromarray(frame_rgb)
-                photo = ImageTk.PhotoImage(pil_image)
-                self.video_label.configure(image=photo, text="")
-                self.video_label.image = photo
-            
-            # Verificar si hemos terminado
-            if self.noise_calibration_count < total_frames:
-                # Programar siguiente captura
-                self.root.after(int(1000 / self.fps.get()), 
-                               lambda: self.capture_noise_frames(temporary_camera, total_frames))
-            else:
-                # Hemos terminado de capturar frames
-                self.complete_noise_calibration(temporary_camera)
-        except Exception as e:
-            self.log_message(f"Error capturando frames de ruido: {str(e)}")
-            self.noise_calibration_active = False
-            if temporary_camera and self.camera:
-                self.camera.release()
-                self.camera = None
-                
-    def complete_noise_calibration(self, temporary_camera):
-        """Finalizar proceso de calibración de ruido creando el modelo"""
-        try:
-            if len(self.noise_calibration_frames) > 0:
-                # Crear modelo promediando todos los frames
-                self.log_message(f"Procesando {len(self.noise_calibration_frames)} frames para modelo de ruido...")
-                
-                # Convertir a array numpy para operaciones eficientes
-                frames_array = np.array(self.noise_calibration_frames)
-                
-                # Calcular media y desviación estándar por pixel
-                mean_frame = np.mean(frames_array, axis=0)
-                std_frame = np.std(frames_array, axis=0)
-                
-                # Guardar modelo como diccionario
-                self.noise_calibration_model = {
-                    'mean': mean_frame,
-                    'std': std_frame,
-                    'timestamp': datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                    'frames_used': len(self.noise_calibration_frames)
-                }
-                
-                # Actualizar interfaz
-                self.noise_calib_status.config(
-                    text=f"Calibrado ({len(self.noise_calibration_frames)} frames)", 
-                    foreground="green")
-                
-                # Activar uso de calibración por defecto
-                self.use_noise_calibration.set(True)
-                
-                # Mensaje de éxito
-                self.log_message("Calibración de ruido completada con éxito.")
-                messagebox.showinfo("Calibración de Ruido", 
-                                  "Modelo de ruido calibrado con éxito.\n"\
-                                  "Ahora puedes iniciar el monitoreo con la máquina ENCENDIDA.")
-            else:
-                self.noise_calib_status.config(text="Error: No hay frames", foreground="red")
-                self.log_message("Error: No se capturaron frames para calibración de ruido")
-        except Exception as e:
-            self.log_message(f"Error procesando modelo de ruido: {str(e)}")
-            self.noise_calib_status.config(text="Error en calibración", foreground="red")
-            
-        finally:
-            # Limpiar variables temporales
-            self.noise_calibration_active = False
-            self.noise_calibration_frames = []
-            self.calibrate_noise_button.config(state='normal')
-            
-            # Cerrar cámara si fue abierta temporalmente
-            if temporary_camera and self.camera:
-                self.camera.release()
-                self.camera = None
-                # Restaurar mensaje de video
-                self.video_label.config(image="", text="📹 El video aparecerá aquí cuando inicies el monitoreo")
-                
-    def apply_noise_calibration(self, frame):
-        """
-        Aplica el modelo de calibración de ruido al frame actual.
-        Reduce el ruido estático detectado durante la calibración.
-        """
-        if not self.use_noise_calibration.get() or self.noise_calibration_model is None:
-            return frame
-        try:
-            # Convertir a escala de grises y a float32
-            if len(frame.shape) == 3:
-                gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY).astype(np.float32)
-            else:
-                gray_frame = frame.astype(np.float32)
-
-            # Obtener modelo calibrado y convertir a float32
-            mean_noise = self.noise_calibration_model['mean'].astype(np.float32)
-            std_noise = self.noise_calibration_model['std'].astype(np.float32)
-
-            # Verificar dimensiones
-            if gray_frame.shape != mean_noise.shape:
-                mean_noise = cv2.resize(mean_noise, (gray_frame.shape[1], gray_frame.shape[0]))
-                std_noise = cv2.resize(std_noise, (gray_frame.shape[1], gray_frame.shape[0]))
-
-            # Restar ruido medio
-            clean_frame = gray_frame - mean_noise
-
-            # Aplicar umbral adaptativo basado en la desviación estándar
-            threshold = std_noise * 2
-            mask = np.where(np.abs(clean_frame) < threshold, 0, 255).astype(np.uint8)
-
-            # Si el frame original es a color, aplicar la máscara a cada canal
-            if len(frame.shape) == 3:
-                result = frame.copy()
-                for c in range(frame.shape[2]):
-                    result[:, :, c] = cv2.bitwise_and(result[:, :, c], mask)
-                return result
-            else:
-                # Convertir de vuelta a uint8 para visualización
-                return cv2.bitwise_and(gray_frame.astype(np.uint8), mask)
-        except Exception as e:
-            self.log_message(f"Error aplicando modelo de ruido: {str(e)}")
-            return frame
             
     def toggle_background_subtraction(self):
         """
@@ -1189,9 +954,7 @@ class MotionMagnificationGUI:
         """Actualizar el estado visual de los filtros de ruido"""
         active_filters = []
         
-        # Mostrar si se está usando la calibración de ruido
-        if self.use_noise_calibration.get() and self.noise_calibration_model is not None:
-            active_filters.append("NoiseCalib✓")
+    # Ya no se usa calibración de ruido
         
         if self.background_subtraction.get():
             bg_status = "BG✓" if self.background_model is not None else "BG⏳"
