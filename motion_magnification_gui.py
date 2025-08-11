@@ -487,6 +487,12 @@ class MotionMagnificationGUI:
     def start_monitoring(self, use_calibration=True):
         """Iniciar el monitoreo de vibración"""
         try:
+            # Reinicializar el ThreadPoolExecutor si es necesario
+            if hasattr(self, 'executor') and self.executor._shutdown:
+                self.executor = ThreadPoolExecutor(max_workers=self.max_workers)
+            elif not hasattr(self, 'executor'):
+                self.executor = ThreadPoolExecutor(max_workers=self.max_workers)
+            
             # Inicializar cámara
             camera_id = self.selected_camera.get()
             self.camera = cv2.VideoCapture(camera_id)
@@ -541,8 +547,36 @@ class MotionMagnificationGUI:
         
         if self.camera:
             self.camera.release()
+            self.camera = None
             
         cv2.destroyAllWindows()
+        
+        # Limpiar estado del sistema para permitir reinicio limpio
+        self.roi = None
+        self.magnify_engine = None
+        self.frame_count = 0
+        self.signal_buffer.clear()
+        
+        # Limpiar caches
+        self.pyramid_cache.clear()
+        self.flow_cache.clear()
+        
+        # Cerrar ThreadPoolExecutor para evitar errores en el reinicio
+        if hasattr(self, 'executor'):
+            self.executor.shutdown(wait=False)
+        
+        # Limpiar buffers de video
+        while not self.video_queue.empty():
+            try:
+                self.video_queue.get_nowait()
+            except:
+                break
+                
+        while not self.data_queue.empty():
+            try:
+                self.data_queue.get_nowait()
+            except:
+                break
         
         # Actualizar estado visual
         self.status_label.config(text="Sistema detenido", foreground="red")
@@ -560,12 +594,11 @@ class MotionMagnificationGUI:
         self.measure_button.config(state='disabled')
         self.record_button.config(state='disabled')
         self.stop_record_button.config(state='disabled')
-    # self.calibrate_noise_button ya no existe
         
         # Limpiar video display
         self.video_label.config(image="", text="📹 El video aparecerá aquí cuando inicies el monitoreo")
         
-        self.log_message("Monitoreo detenido")
+        self.log_message("Monitoreo detenido - Sistema listo para nueva configuración")
         
     def select_roi(self):
         """Seleccionar ROI en la imagen"""
