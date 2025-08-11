@@ -113,32 +113,6 @@ Los datos se graban **únicamente cuando el usuario lo decide**:
 - **ESC**: Salir del monitoreo
 - **R**: Re-seleccionar ROI durante el monitoreo
 
-## 🎚️ Calibración de Ruido con la Máquina Apagada
-
-La calibración de ruido de fondo es una característica avanzada que permite al sistema detectar y filtrar automáticamente las señales de ruido estáticas presentes en el entorno cuando la máquina está apagada.
-
-### ¿Cómo funciona?
-
-1. **Captura de línea base**: El sistema registra varios frames con la máquina apagada para establecer un perfil de "ruido de fondo"
-2. **Creación de modelo estadístico**: Calcula la media y desviación estándar de cada píxel en los frames capturados
-3. **Filtrado en tiempo real**: Durante el monitoreo, resta automáticamente el ruido identificado de la señal
-
-### Procedimiento de calibración:
-
-1. **Asegúrate que la máquina está APAGADA**
-2. En la pestaña "Configuración y Consola", localiza la sección "Calibración de Ruido de Fondo"
-3. Establece la duración de la calibración (segundos) - recomendado: 5-10 segundos
-4. Presiona "🔧 Calibrar Ruido"
-5. Espera a que finalice la calibración (barra de progreso)
-6. Ahora puedes **encender la máquina** y presionar "▶ Iniciar"
-
-### Opciones disponibles:
-
-- **Calibrar y usar**: El procedimiento recomendado - calibra con máquina apagada, luego inicia el monitoreo
-- **Omitir calibración**: Usa "▶ Iniciar Sin Calibración" para saltar este paso si no es necesario
-- **Activar/Desactivar**: Usa el checkbox "Usar calibración" para activar/desactivar el modelo de ruido
-
-Esta función mejora significativamente la precisión de detección en entornos ruidosos, especialmente para detectar pequeñas vibraciones.
 
 ## Parámetros Técnicos
 
