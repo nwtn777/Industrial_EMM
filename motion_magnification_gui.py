@@ -31,11 +31,27 @@ from skimage import img_as_float, img_as_ubyte
 import copy
 
 class MotionMagnificationGUI:
+    def on_closing(self):
+        """Maneja el evento de cierre de la ventana principal."""
+        try:
+            self.is_running = False
+            if hasattr(self, 'camera') and self.camera:
+                self.camera.release()
+            if hasattr(self, 'csv_file') and self.csv_file:
+                self.csv_file.close()
+            cv2.destroyAllWindows()
+        except Exception as e:
+            self.log_message(f"Error al cerrar la aplicación: {str(e)}")
+        finally:
+            self.root.destroy()
     def __init__(self, root):
         self.root = root
         self.root.title("Motion Magnification - Sistema de Monitoreo de Vibraciones")
-        self.root.geometry("1400x900")  # Ventana más grande para el nuevo layout
-        self.root.minsize(1200, 700)    # Tamaño mínimo
+        self.root.geometry("1400x900")
+        self.root.minsize(1200, 700)
+        
+        # Agregar manejo de cierre de ventana
+        self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
         
         # Variables de control
         self.camera = None
@@ -243,7 +259,7 @@ class MotionMagnificationGUI:
         optim_separator = ttk.Separator(config_frame, orient='horizontal')
         optim_separator.grid(row=8, column=0, columnspan=4, sticky='ew', pady=5)
         
-        ttk.Label(config_frame, text="⚡ Optimización de Rendimiento", font=('Arial', 9, 'bold')).grid(
+        ttk.Label(config_frame, text=" Optimización de Rendimiento", font=('Arial', 9, 'bold')).grid(
             row=9, column=0, columnspan=4, pady=2)
         
         # Procesamiento paralelo
@@ -995,91 +1011,30 @@ class MotionMagnificationGUI:
             
     def apply_noise_filtering(self, frame, roi_region=None):
         """
-        Aplica una serie de filtros de reducción de ruido al frame de video:
-        0. Calibración de ruido (elimina ruido consistente si está calibrado)
-        1. Filtro Gaussiano adaptativo (reduce ruido general)
-        2. Sustracción de fondo (elimina fondo estático si está activado)
-        3. Filtrado morfológico (elimina ruido tipo sal y pimienta)
-        4. Suavizado temporal (reduce parpadeo y ruido temporal)
-        Si roi_region se pasa, la máscara de fondo se aplica solo al ROI.
+        Aplica un único filtro Gaussiano ligero para detección óptima de vibración.
         """
-        filtered_frame = frame.copy()
-        
-        # --- 0. Aplicar modelo de calibración de ruido si está activo ---
-        if self.use_noise_calibration.get() and self.noise_calibration_model is not None:
-            filtered_frame = self.apply_noise_calibration(filtered_frame)
-        
-        # --- 1. Filtrado Gaussiano adaptativo ---
         noise_level = self.noise_reduction_level.get()
-        kernel_size = max(3, int(noise_level * 2) + 1)  # Tamaño de kernel adaptativo
+        kernel_size = max(3, int(noise_level * 2) + 1)
         if kernel_size % 2 == 0:
             kernel_size += 1
-        filtered_frame = cv2.GaussianBlur(filtered_frame, (kernel_size, kernel_size), noise_level)
-        # --- 2. Sustracción de fondo ---
-        if self.background_subtraction.get() and self.background_model is not None:
-            # Convertir a escala de grises si es necesario
-            gray_frame = cv2.cvtColor(filtered_frame, cv2.COLOR_BGR2GRAY) if len(filtered_frame.shape) == 3 else filtered_frame
-            gray_bg = cv2.cvtColor(self.background_model, cv2.COLOR_BGR2GRAY) if len(self.background_model.shape) == 3 else self.background_model
-            # Diferencia absoluta entre frame y fondo
-            diff = cv2.absdiff(gray_frame, gray_bg)
-            # Umbralización adaptativa para eliminar fondo
-            threshold_value = np.mean(diff) + noise_level * np.std(diff)
-            _, mask = cv2.threshold(diff, threshold_value, 255, cv2.THRESH_BINARY)
-            # Si se pasa un ROI, aplicar la máscara solo a esa región
-            if roi_region is not None and len(roi_region.shape) == 3:
-                roi_gray = cv2.cvtColor(roi_region, cv2.COLOR_BGR2GRAY)
-                roi_mask = cv2.resize(mask, (roi_region.shape[1], roi_region.shape[0]))
-                # Aplicar máscara solo a la región de interés (canal por canal)
-                for c in range(roi_region.shape[2]):
-                    roi_region[:, :, c] = cv2.bitwise_and(roi_region[:, :, c], roi_mask)
-        # --- 3. Filtrado morfológico ---
-        if self.morphological_filtering.get():
-            # Kernel pequeño para operaciones morfológicas
-            kernel = np.ones((3, 3), np.uint8)
-            if len(filtered_frame.shape) == 3:  # Frame a color
-                for c in range(filtered_frame.shape[2]):
-                    # Opening (erosión+dilatación) y closing (dilatación+erosión)
-                    filtered_frame[:, :, c] = cv2.morphologyEx(filtered_frame[:, :, c], cv2.MORPH_OPEN, kernel)
-                    filtered_frame[:, :, c] = cv2.morphologyEx(filtered_frame[:, :, c], cv2.MORPH_CLOSE, kernel)
-            else:  # Frame en escala de grises
-                filtered_frame = cv2.morphologyEx(filtered_frame, cv2.MORPH_OPEN, kernel)
-                filtered_frame = cv2.morphologyEx(filtered_frame, cv2.MORPH_CLOSE, kernel)
-        # --- 4. Suavizado temporal ---
-        if self.temporal_smoothing.get() and len(self.frame_buffer) > 0:
-            # Promediar con el frame anterior para reducir ruido temporal
-            alpha = 0.7  # Factor de mezcla
-            if len(self.frame_buffer) > 0:
-                previous_frame = self.frame_buffer[-1]
-                if previous_frame.shape == filtered_frame.shape:
-                    filtered_frame = cv2.addWeighted(filtered_frame, alpha, previous_frame, 1-alpha, 0)
-        # Añadir frame actual al buffer temporal
-        self.frame_buffer.append(filtered_frame.copy())
+        filtered_frame = cv2.GaussianBlur(frame, (kernel_size, kernel_size), noise_level)
         return filtered_frame
         
     def apply_roi_noise_filtering(self, roi_gray):
         """
-        Aplica filtros adicionales al ROI (región de interés) en escala de grises:
-        1. Filtro bilateral: preserva bordes y reduce ruido
-        2. Filtro de mediana: elimina ruido impulsivo
-        3. Filtro gaussiano suave si la varianza es alta (tipo Wiener)
+        Versión simplificada para ROI que evita el sobre-procesamiento.
+        Aplica sólo un filtro gaussiano controlado.
         """
         filtered_roi = roi_gray.copy()
         noise_level = self.noise_reduction_level.get()
-        # --- 1. Filtro bilateral ---
-        d = int(noise_level * 3)  # Diámetro del filtro
-        sigma_color = noise_level * 20
-        sigma_space = noise_level * 20
-        filtered_roi = cv2.bilateralFilter(filtered_roi, d, sigma_color, sigma_space)
-        # --- 2. Filtro de mediana ---
-        kernel_size = max(3, int(noise_level))
+        
+        # Aplicar un único filtro gaussiano con parámetros adaptados a la intensidad de ruido
+        kernel_size = max(3, int(noise_level * 1.5) + 1)
         if kernel_size % 2 == 0:
             kernel_size += 1
-        filtered_roi = cv2.medianBlur(filtered_roi, kernel_size)
-        # --- 3. Filtro gaussiano si la varianza es alta ---
-        laplacian_var = cv2.Laplacian(filtered_roi, cv2.CV_64F).var()
-        noise_var = noise_level * 10
-        if laplacian_var > noise_var:
-            filtered_roi = cv2.GaussianBlur(filtered_roi, (3, 3), 0.8)
+            
+        filtered_roi = cv2.GaussianBlur(filtered_roi, (kernel_size, kernel_size), noise_level/2)
+        
         return filtered_roi
         
     # --- FUNCIONES DE OPTIMIZACIÓN Y PROCESAMIENTO PARALELO ---
@@ -1161,10 +1116,7 @@ class MotionMagnificationGUI:
                 current_gray = current_roi.copy()
             
             # Calcular flujo óptico
-            flow = cv2.calcOpticalFlowFarneback(prev_gray, current_gray, None, 
-                                              0.5, 3, 15, 3, 5, 1.2, 0)
-            mean_magnitude = np.mean(cv2.norm(flow, cv2.NORM_L2))
-            return mean_magnitude, current_gray
+            flow = cv2
             
         except Exception as e:
             self.log_message(f"Error en flujo óptico paralelo: {str(e)}")
@@ -1228,10 +1180,10 @@ class MotionMagnificationGUI:
             if avg_time > target_time * 1.5 and self.adaptive_quality:
                 if not self.use_frame_skip.get():
                     self.use_frame_skip.set(True)
-                    self.log_message("⚡ Activando salto de frames automático por rendimiento")
+                    self.log_message(" Activando salto de frames automático por rendimiento")
                 elif self.skip_frames.get() < 5:
                     self.skip_frames.set(self.skip_frames.get() + 1)
-                    self.log_message(f"⚡ Aumentando salto de frames a {self.skip_frames.get()}")
+                    self.log_message(f" Aumentando salto de frames a {self.skip_frames.get()}")
     
     def update_noise_filter_status(self):
         """Actualizar el estado visual de los filtros de ruido"""
@@ -1372,7 +1324,7 @@ class MotionMagnificationGUI:
     def processing_loop(self):
         """Loop principal de procesamiento optimizado"""
         self.log_message("Iniciando loop de procesamiento optimizado...")
-        self.log_message(f"⚡ Usando {self.max_workers} threads para procesamiento paralelo")
+        self.log_message(f" Usando {self.max_workers} threads para procesamiento paralelo")
         
         prev_gray = None
         
@@ -1433,13 +1385,13 @@ class MotionMagnificationGUI:
                             fps_actual = 1.0 / processing_time if processing_time > 0 else 0
                             
                             # Mostrar parámetros y rendimiento
-                            params_text = f"α:{self.alpha.get():.0f} | fl:{self.fl.get():.3f} | fh:{self.fh.get():.2f} | FPS:{fps_actual:.1f}"
+                            params_text = f"alpha:{self.alpha.get():.0f} | fl:{self.fl.get():.3f} | fh:{self.fh.get():.2f} | FPS:{fps_actual:.1f}"
                             cv2.putText(frame, params_text, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 
                                        0.5, (255, 255, 255), 1)
                             
                             # Mostrar estado de optimizaciones
                             if self.use_parallel_processing.get() or self.use_frame_skip.get():
-                                optim_text = f"⚡"
+                                optim_text = f""
                                 if self.use_parallel_processing.get():
                                     optim_text += f" Parallel({self.max_workers})"
                                 if self.use_frame_skip.get():
@@ -1559,10 +1511,10 @@ class MotionMagnificationGUI:
                         # Actualizar etiqueta del eje Y según calibración
                         if self.is_calibrated:
                             self.ax2.set_ylabel("Magnitud (mm/s)")
-                            self.ax2.set_title("📈 Espectro de Velocidad (FFT)")
+                            self.ax2.set_title("Espectro de Velocidad (FFT)")
                         else:
                             self.ax2.set_ylabel("Magnitud (px/frame)")
-                            self.ax2.set_title("📈 Espectro de Frecuencias (FFT)")
+                            self.ax2.set_title("Espectro de Frecuencias (FFT)")
                         
                     # Redibujar gráficas
                     self.canvas.draw()
