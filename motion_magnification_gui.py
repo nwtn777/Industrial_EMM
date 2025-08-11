@@ -33,6 +33,7 @@ import copy
 class MotionMagnificationGUI:
     def on_closing(self):
         """Maneja el evento de cierre de la ventana principal."""
+        import sys
         try:
             self.is_running = False
             if hasattr(self, 'camera') and self.camera:
@@ -44,6 +45,7 @@ class MotionMagnificationGUI:
             self.log_message(f"Error al cerrar la aplicación: {str(e)}")
         finally:
             self.root.destroy()
+            sys.exit(0)
     def __init__(self, root):
         self.root = root
         self.root.title("Motion Magnification - Sistema de Monitoreo de Vibraciones")
