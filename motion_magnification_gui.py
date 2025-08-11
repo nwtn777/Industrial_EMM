@@ -182,6 +182,16 @@ class MotionMagnificationGUI:
         # Frame superior para configuración
         config_frame = ttk.LabelFrame(parent, text="Configuración de Parámetros")
         config_frame.pack(fill='x', padx=5, pady=5)
+
+        # Ayuda visual sobre alpha y lambda_c (mover aquí para evitar UnboundLocalError)
+        help_text = (
+            "Alpha (amplificación): 10-50 = baja, 100-200 = recomendado, >300 = solo para señales muy limpias.\n"
+            "Lambda_c (escala espacial): 10-50 = detalles finos, 100-200 = piezas grandes, >300 = objetos muy grandes.\n"
+            "Recomendado: Alpha 150-200 y Lambda_c 100-150 para vibraciones industriales.\n"
+            "Ajusta alpha para más/menos sensibilidad y lambda_c según el tamaño de la estructura que te interesa."
+        )
+        ttk.Label(config_frame, text=help_text, foreground="blue", font=("Arial", 8), justify="left", wraplength=600).grid(
+            row=11, column=0, columnspan=4, sticky='w', padx=5, pady=(8, 2))
         
         # Selección de cámara
         ttk.Label(config_frame, text="Cámara:").grid(row=0, column=0, sticky='w', padx=5, pady=2)
