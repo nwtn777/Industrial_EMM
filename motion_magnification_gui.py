@@ -59,9 +59,9 @@ class MotionMagnificationGUI:
         self.camera = None
         self.is_running = False
         self.selected_camera = tk.IntVar(value=0)
-        self.fps = tk.DoubleVar(value=20.0)
-        self.alpha = tk.DoubleVar(value=100.0)
-        self.lambda_c = tk.DoubleVar(value=50.0)
+        self.fps = tk.DoubleVar(value=30.0)
+        self.alpha = tk.DoubleVar(value=200.0)
+        self.lambda_c = tk.DoubleVar(value=80.0)
         self.fl = tk.DoubleVar(value=0.5)
         self.fh = tk.DoubleVar(value=9)
 
