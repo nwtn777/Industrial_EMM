@@ -31,6 +31,10 @@ from skimage import img_as_float, img_as_ubyte
 import copy
 
 class MotionMagnificationGUI:
+    def get_effective_fps(self):
+        """Devuelve el FPS efectivo considerando el salto de frames."""
+        skip = max(1, self.skip_frames.get())
+        return self.fps.get() / skip
     def on_closing(self):
         """Maneja el evento de cierre de la ventana principal."""
         import sys
@@ -1103,34 +1107,32 @@ class MotionMagnificationGUI:
         """Convertir magnitud de píxeles/frame a unidades físicas"""
         if not self.is_calibrated:
             return magnitude_px_per_frame, "px/frame"
-            
         # Convertir a mm/frame
         mm_per_frame = magnitude_px_per_frame * self.mm_per_pixel.get()
-        
+        # FPS efectivo
+        fps_eff = self.get_effective_fps()
         # Convertir a mm/s
-        time_per_frame = 1.0 / self.fps.get()  # segundos por frame
+        time_per_frame = 1.0 / fps_eff  # segundos por frame efectivo
         mm_per_second = mm_per_frame / time_per_frame
-        
         return mm_per_second, "mm/s"
         
     def auto_tune_fl_fh(self, signal_buffer, fps):
         """Ajustar automáticamente fl y fh usando picos del espectro"""
         from scipy.signal import find_peaks
-        
         signal_arr = np.array(signal_buffer) - np.mean(signal_buffer)
         fft_vals = np.abs(np.fft.rfft(signal_arr))
-        freqs = np.fft.rfftfreq(len(signal_arr), d=1.0/fps)
-        
+        freqs = np.fft.rfftfreq(len(signal_arr), d=1.0/self.get_effective_fps())
+
         # Aplicar filtro paso alto si está habilitado para el análisis
         if self.fft_highpass_enabled.get():
             cutoff = self.fft_cutoff_freq.get()
             cutoff_idx = np.searchsorted(freqs, cutoff)
             if cutoff_idx > 0:
                 fft_vals[:cutoff_idx] = 0  # Suprimir frecuencias bajas para análisis
-        
+
         peaks, _ = find_peaks(fft_vals[1:], height=np.max(fft_vals[1:]) * 0.2)
         peaks = peaks + 1  # ignorar DC
-        
+
         if len(peaks) > 0:
             fl = max(0.01, freqs[peaks].min() - 0.2)
             fh = freqs[peaks].max() + 0.2
@@ -1139,7 +1141,7 @@ class MotionMagnificationGUI:
             dominant_freq = freqs[peak_idx]
             fl = max(0.01, dominant_freq - 0.5)
             fh = dominant_freq + 0.5
-            
+
         return fl, fh
         
     def processing_loop(self):
@@ -1165,6 +1167,8 @@ class MotionMagnificationGUI:
                 
                 # Procesar solo si hay ROI y motor de magnificación
                 if self.roi and self.magnify_engine:
+                    # FPS efectivo para cálculos
+                    fps_eff = self.get_effective_fps()
                     # Usar procesamiento paralelo u optimizado
                     processing_results = self.process_frame_parallel(frame, self.roi, prev_gray)
                     
@@ -1301,61 +1305,125 @@ class MotionMagnificationGUI:
         try:
             while True:
                 data = self.data_queue.get_nowait()
-                
-                # Actualizar gráfica de señal
                 signal_data = data['signal']
                 if len(signal_data) > 1:
-                    self.line1.set_data(range(len(signal_data)), signal_data)
+                    x_vals = range(len(signal_data))
+                    self.line1.set_data(x_vals, signal_data)
                     self.ax1.set_xlim(0, len(signal_data))
-                    self.ax1.set_ylim(min(signal_data), max(signal_data))
-                    
-                    # Calcular y mostrar FFT
-                    if len(signal_data) >= 32:  # Mínimo para FFT útil
+                    # Mejorar escala y márgenes
+                    y_min, y_max = min(signal_data), max(signal_data)
+                    y_pad = (y_max - y_min) * 0.1 if y_max > y_min else 1
+                    self.ax1.set_ylim(y_min - y_pad, y_max + y_pad)
+
+                    # Etiquetas y unidades dinámicas
+                    if self.vibration_method.get() == 'flujo':
+                        y_label = "Magnitud media flujo óptico"
+                    else:
+                        y_label = "Brillo medio ROI"
+                    if self.is_calibrated:
+                        y_label += " (mm/s)"
+                    else:
+                        y_label += " (px/frame)"
+                    self.ax1.set_ylabel(y_label)
+
+                    # Título dinámico
+                    method = self.vibration_method.get()
+                    if method == 'flujo':
+                        title = "📊 Señal de Vibración (Flujo óptico)"
+                    else:
+                        title = "📊 Señal de Vibración (Brillo)"
+                    self.ax1.set_title(title, fontsize=12, fontweight='bold')
+
+                    # Estadísticas señal
+                    rms = np.sqrt(np.mean(np.square(signal_data)))
+                    mean = np.mean(signal_data)
+                    min_val = np.min(signal_data)
+                    max_val = np.max(signal_data)
+                    stats_text = f"RMS: {rms:.2f}  Media: {mean:.2f}  Min: {min_val:.2f}  Max: {max_val:.2f}"
+                    # Borrar textos previos
+                    if hasattr(self, '_signal_stats_text') and self._signal_stats_text:
+                        self._signal_stats_text.remove()
+                    self._signal_stats_text = self.ax1.text(0.01, 0.98, stats_text, transform=self.ax1.transAxes,
+                        fontsize=9, color='black', verticalalignment='top', bbox=dict(facecolor='white', alpha=0.7, edgecolor='none'))
+
+                    # Líneas de referencia
+                    for line in getattr(self, '_signal_ref_lines', []):
+                        line.remove()
+                    self._signal_ref_lines = [
+                        self.ax1.axhline(mean, color='g', linestyle='--', linewidth=1, alpha=0.5, label='Media'),
+                        self.ax1.axhline(rms, color='m', linestyle=':', linewidth=1, alpha=0.5, label='RMS'),
+                    ]
+
+                    self.ax1.grid(True, which='both', linestyle=':', alpha=0.4)
+                    self.ax1.legend(loc='upper right', fontsize=9, frameon=True)
+
+                    # FFT con filtro pasa-alta real si está habilitado
+                    if len(signal_data) >= 32:
                         signal_arr = np.array(signal_data) - np.mean(signal_data)
-                        fft_vals = np.abs(np.fft.rfft(signal_arr))
-                        freqs = np.fft.rfftfreq(len(signal_arr), d=1.0/self.fps.get())
-                        
-                        # Aplicar filtro paso alto si está habilitado
+                        freqs = np.fft.rfftfreq(len(signal_arr), d=1.0/self.get_effective_fps())
+                        fft_vals = None
+                        # Filtro pasa-alta real
+                        if self.fft_highpass_enabled.get():
+                            from scipy.signal import butter, filtfilt
+                            cutoff = self.fft_cutoff_freq.get()
+                            fs = self.get_effective_fps()
+                            # Normalizar frecuencia de corte
+                            wn = cutoff / (0.5 * fs)
+                            if wn < 1.0:
+                                b, a = butter(2, wn, btype='high')
+                                filtered_signal = filtfilt(b, a, signal_arr)
+                                fft_vals = np.abs(np.fft.rfft(filtered_signal))
+                            else:
+                                fft_vals = np.abs(np.fft.rfft(signal_arr))
+                        else:
+                            fft_vals = np.abs(np.fft.rfft(signal_arr))
+
+                        # Graficar FFT
+                        self.line2.set_data(freqs[1:], fft_vals[1:])
                         if self.fft_highpass_enabled.get():
                             cutoff = self.fft_cutoff_freq.get()
-                            # Encontrar índice de frecuencia de corte
-                            cutoff_idx = np.searchsorted(freqs, cutoff)
-                            if cutoff_idx > 0:
-                                # Crear máscara de filtro paso alto
-                                fft_vals_filtered = fft_vals.copy()
-                                fft_vals_filtered[:cutoff_idx] = 0  # Suprimir frecuencias bajas
-                                self.line2.set_data(freqs[1:], fft_vals_filtered[1:])  # Excluir DC
-                                self.ax2.set_xlim(cutoff, max(freqs))  # Ajustar vista para mostrar desde frecuencia de corte
-                                if len(fft_vals_filtered[cutoff_idx:]) > 0:
-                                    self.ax2.set_ylim(0, max(fft_vals_filtered[cutoff_idx:]))
-                                else:
-                                    self.ax2.set_ylim(0, 1)
+                            self.ax2.set_xlim(cutoff, max(freqs))
+                            if len(freqs) > 1:
+                                self.ax2.set_ylim(0, max(fft_vals[1:]) * 1.1)
                             else:
-                                # Si cutoff es muy alto, mostrar todo el espectro
-                                self.line2.set_data(freqs[1:], fft_vals[1:])
-                                self.ax2.set_xlim(0, max(freqs))
-                                self.ax2.set_ylim(0, max(fft_vals[1:]) if len(fft_vals) > 1 else 1)
+                                self.ax2.set_ylim(0, 1)
                         else:
-                            # Sin filtro, mostrar todo el espectro
-                            self.line2.set_data(freqs[1:], fft_vals[1:])  # Excluir DC
                             self.ax2.set_xlim(0, max(freqs))
-                            self.ax2.set_ylim(0, max(fft_vals[1:]) if len(fft_vals) > 1 else 1)
-                        
-                        # Actualizar etiqueta del eje Y según calibración
+                            self.ax2.set_ylim(0, max(fft_vals[1:]) * 1.1 if len(fft_vals) > 1 else 1)
+
+                        # Etiquetas y título FFT
                         if self.is_calibrated:
                             self.ax2.set_ylabel("Magnitud (mm/s)")
                             self.ax2.set_title("Espectro de Velocidad (FFT)")
                         else:
                             self.ax2.set_ylabel("Magnitud (px/frame)")
                             self.ax2.set_title("Espectro de Frecuencias (FFT)")
-                        
-                    # Redibujar gráficas
+
+                        # Estadísticas FFT
+                        fft_peak_idx = np.argmax(fft_vals[1:]) + 1 if len(fft_vals) > 1 else 0
+                        fft_peak_freq = freqs[fft_peak_idx] if fft_peak_idx > 0 else 0
+                        fft_peak_val = fft_vals[fft_peak_idx] if fft_peak_idx > 0 else 0
+                        fft_stats = f"Pico: {fft_peak_freq:.2f} Hz ({fft_peak_val:.2f})"
+                        if hasattr(self, '_fft_stats_text') and self._fft_stats_text:
+                            self._fft_stats_text.remove()
+                        self._fft_stats_text = self.ax2.text(0.01, 0.98, fft_stats, transform=self.ax2.transAxes,
+                            fontsize=9, color='black', verticalalignment='top', bbox=dict(facecolor='white', alpha=0.7, edgecolor='none'))
+
+                        # Línea de referencia en pico
+                        for line in getattr(self, '_fft_ref_lines', []):
+                            line.remove()
+                        self._fft_ref_lines = []
+                        if fft_peak_idx > 0:
+                            self._fft_ref_lines.append(
+                                self.ax2.axvline(fft_peak_freq, color='r', linestyle='--', linewidth=1, alpha=0.5, label='Pico')
+                            )
+
+                        self.ax2.grid(True, which='both', linestyle=':', alpha=0.4)
+                        self.ax2.legend(loc='upper right', fontsize=9, frameon=True)
+
                     self.canvas.draw()
-                    
         except queue.Empty:
             pass
-        
-        # Programar siguiente actualización solo si la ventana está activa
         if self.root.winfo_exists():
             self.root.after(100, self.update_graphs)
 
