@@ -4,6 +4,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from fpdf import FPDF
 import os
+import numpy as np
 
 class PDF(FPDF):
     def header(self):
@@ -32,7 +33,10 @@ def calcular_estadisticas(df):
 
 def generar_graficos(df, output_dir, base_filename):
     image_paths = []
+    fft_image_paths = []
+    fft_peaks_dict = {}
     for col in df.select_dtypes(include='number').columns:
+        # Gráfico de la señal
         plt.figure(figsize=(8, 3))
         plt.plot(df[col], label=col)
         plt.title(f'Señal: {col}')
@@ -44,15 +48,55 @@ def generar_graficos(df, output_dir, base_filename):
         plt.savefig(img_path)
         plt.close()
         image_paths.append(img_path)
-    return image_paths
 
-def generar_pdf(stats, image_paths, output_pdf):
+        # FFT y espectro
+        x = df[col].values
+        n = len(x)
+        x = x - np.mean(x)
+        fft_vals = np.fft.rfft(x)
+        fft_freqs = np.fft.rfftfreq(n, d=1.0)  # d=1.0: asume frecuencia de muestreo 1 Hz
+        fft_mags = np.abs(fft_vals)
+        # Gráfico espectro
+        plt.figure(figsize=(8, 3))
+        plt.plot(fft_freqs, fft_mags, label=f'FFT {col}')
+        plt.title(f'Espectro de Frecuencia (FFT): {col}')
+        plt.xlabel('Frecuencia [Hz]')
+        plt.ylabel('Magnitud')
+        plt.legend()
+        fft_img_path = os.path.join(output_dir, f'{base_filename}_{col}_fft.png')
+        plt.tight_layout()
+        plt.savefig(fft_img_path)
+        plt.close()
+        fft_image_paths.append(fft_img_path)
+
+        # Frecuencias dominantes (3 picos principales, ignorando DC)
+        if len(fft_mags) > 1:
+            mags = fft_mags.copy()
+            mags[0] = 0  # Ignorar DC
+            peak_indices = mags.argsort()[-3:][::-1]
+            peaks = [(fft_freqs[i], fft_mags[i]) for i in peak_indices]
+            fft_peaks_dict[col] = peaks
+        else:
+            fft_peaks_dict[col] = []
+    return image_paths, fft_image_paths, fft_peaks_dict
+
+def generar_pdf(stats, image_paths, fft_image_paths, fft_peaks_dict, output_pdf):
     pdf = PDF()
     pdf.add_page()
     pdf.chapter_title('Estadísticas básicas:')
     body = stats.to_string()
     pdf.chapter_body(body)
     for img in image_paths:
+        pdf.add_image(img)
+    pdf.chapter_title('Análisis de Frecuencias (FFT):')
+    for col, peaks in fft_peaks_dict.items():
+        pdf.chapter_title(f'Frecuencias dominantes en {col}:')
+        if peaks:
+            peak_str = '\n'.join([f'Frecuencia: {f:.2f} Hz, Magnitud: {m:.2f}' for f, m in peaks])
+        else:
+            peak_str = 'No se detectaron picos significativos.'
+        pdf.chapter_body(peak_str)
+    for img in fft_image_paths:
         pdf.add_image(img)
     pdf.output(output_pdf)
 
@@ -61,10 +105,10 @@ def procesar_archivo(csv_path):
     stats = calcular_estadisticas(df)
     output_dir = os.path.dirname(csv_path)
     base_filename = os.path.splitext(os.path.basename(csv_path))[0]
-    image_paths = generar_graficos(df, output_dir, base_filename)
+    image_paths, fft_image_paths, fft_peaks_dict = generar_graficos(df, output_dir, base_filename)
     output_pdf = os.path.join(output_dir, f'{base_filename}_reporte.pdf')
-    generar_pdf(stats, image_paths, output_pdf)
-    for img in image_paths:
+    generar_pdf(stats, image_paths, fft_image_paths, fft_peaks_dict, output_pdf)
+    for img in image_paths + fft_image_paths:
         os.remove(img)
     return output_pdf
 
