@@ -278,21 +278,18 @@ Permite filtrar frecuencias bajas en el espectro FFT mediante **filtrado real de
 #### Para Máquinas con Múltiples Núcleos:
 ```
 ✅ Activar "Procesamiento Paralelo"
-✅ Frame Skipping: 1-2 (para análisis estándar)
 ✅ Magnificación: 15-30 (balanceado)
 ```
 
 #### Para Análisis de Alta Precisión:
 ```
 ✅ Activar "Procesamiento Paralelo"
-✅ Frame Skipping: 0 (sin saltar frames)
 ✅ Magnificación: 10-20 (más preciso)
 ```
 
 #### Para Visualización en Tiempo Real:
 ```
 ✅ Activar "Procesamiento Paralelo"
-✅ Frame Skipping: 2-3 (más fluido)
 ✅ Magnificación: 20-40 (más visible)
 ```
 
