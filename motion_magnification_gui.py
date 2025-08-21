@@ -69,9 +69,9 @@ class MotionMagnificationGUI:
         self.fl = tk.DoubleVar(value=0.5)
         self.fh = tk.DoubleVar(value=9)
 
-        # Añadimos estas variables para evitar el error, pero no las usaremos para saltar frames
-        self.use_frame_skip = tk.BooleanVar(value=False)
-        self.skip_frames = tk.IntVar(value=1)  # 1 significa no saltar ningún frame
+        # Añadimos estas variables para mantener compatibilidad, pero no se usan
+        self.use_frame_skip = tk.BooleanVar(value=False)  # Siempre desactivado
+        self.skip_frames = tk.IntVar(value=1)  # Siempre 1 (no saltar frames)
         self.frame_skip_counter = 0
         
         # Variables para calibración física
@@ -136,7 +136,7 @@ class MotionMagnificationGUI:
         
         # Control de rendimiento
         self.processing_times = deque(maxlen=10)  # Para monitoreo de rendimiento
-        self.adaptive_quality = True  # Ajuste adaptativo de calidad
+        self.adaptive_quality = False  # Desactivado para evitar salto automático de frames
         
         # Flags de optimización
         self.use_parallel_processing = tk.BooleanVar(value=True)
@@ -316,7 +316,7 @@ class MotionMagnificationGUI:
                                     command=self.select_roi, state='disabled')
         self.roi_button.pack(side='left', padx=5)
         
-        self.auto_tune_button = ttk.Button(button_row2, text="⚙️ Auto-tune", 
+        self.auto_tune_button = ttk.Button(button_row2, text="Auto-tune", 
                                           command=self.auto_tune_frequencies, state='disabled')
         self.auto_tune_button.pack(side='left', padx=5)
         
@@ -995,7 +995,7 @@ class MotionMagnificationGUI:
         return False
     
     def monitor_performance(self, processing_time):
-        """Monitorear rendimiento y ajustar automáticamente"""
+        """Monitorear rendimiento sin ajustes automáticos de frame skipping"""
         self.processing_times.append(processing_time)
         
         if len(self.processing_times) >= 5:  # Evaluar cada 5 frames
@@ -1003,14 +1003,9 @@ class MotionMagnificationGUI:
             target_fps = self.fps.get()
             target_time = 1.0 / target_fps;
             
-            # Si el procesamiento es muy lento, activar optimizaciones automáticas
-            if avg_time > target_time * 1.5 and self.adaptive_quality:
-                if not self.use_frame_skip.get():
-                    self.use_frame_skip.set(True)
-                    self.log_message(" Activando salto de frames automático por rendimiento")
-                elif self.skip_frames.get() < 5:
-                    self.skip_frames.set(self.skip_frames.get() + 1)
-                    self.log_message(f" Aumentando salto de frames a {self.skip_frames.get()}")
+            # Solo registrar el rendimiento sin activar optimizaciones automáticas
+            if avg_time > target_time * 1.5:
+                self.log_message(f" Rendimiento: {avg_time:.3f}s/frame (objetivo: {target_time:.3f}s)")
     
     def update_noise_filter_status(self):
         """Actualizar el estado visual de los filtros de ruido"""
@@ -1329,9 +1324,9 @@ class MotionMagnificationGUI:
                     # Título dinámico
                     method = self.vibration_method.get()
                     if method == 'flujo':
-                        title = "📊 Señal de Vibración (Flujo óptico)"
+                        title = "Señal de Vibración (Flujo óptico)"
                     else:
-                        title = "📊 Señal de Vibración (Brillo)"
+                        title = "Señal de Vibración (Brillo)"
                     self.ax1.set_title(title, fontsize=12, fontweight='bold')
 
                     # Estadísticas señal
@@ -1380,15 +1375,16 @@ class MotionMagnificationGUI:
 
                         # Graficar FFT
                         self.line2.set_data(freqs[1:], fft_vals[1:])
+                        fft_xmax = 15
                         if self.fft_highpass_enabled.get():
                             cutoff = self.fft_cutoff_freq.get()
-                            self.ax2.set_xlim(cutoff, max(freqs))
+                            self.ax2.set_xlim(cutoff, fft_xmax)
                             if len(freqs) > 1:
                                 self.ax2.set_ylim(0, max(fft_vals[1:]) * 1.1)
                             else:
                                 self.ax2.set_ylim(0, 1)
                         else:
-                            self.ax2.set_xlim(0, max(freqs))
+                            self.ax2.set_xlim(0, fft_xmax)
                             self.ax2.set_ylim(0, max(fft_vals[1:]) * 1.1 if len(fft_vals) > 1 else 1)
 
                         # Etiquetas y título FFT
