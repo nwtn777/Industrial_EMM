@@ -1,20 +1,25 @@
 
-# � Motion Magnification GUI para Análisis de Vibraciones Industriales
+# 🔬 Motion Magnification GUI para Análisis de Vibraciones Industriales
 
-**Versión:** 1.4.0 (Agosto 2025)
+**Versión:** 2.0.0 (Agosto 2025)
 
 **Autor:** [@nwtn777](https://github.com/nwtn777)
 
-**Repositorio:** [motion_magnification](https://github.com/nwtn777/motion_magnification)
+**Repositorio:** [Industrial_EMM](https://github.com/nwtn777/Industrial_EMM)
 
 ## 🚀 Descripción General
 
-Interfaz gráfica avanzada para análisis de vibraciones mediante magnificación de movimiento en video. Permite monitoreo, grabación manual, análisis FFT, selección de ROI, auto-tune de frecuencias, calibración física y filtrado avanzado, todo en tiempo real y con procesamiento paralelo optimizado. Ahora la señal de vibración se calcula a partir del **flujo óptico** (no del brillo), los parámetros principales pueden editarse dinámicamente, y el programa se cierra completamente al salir del GUI.
+Interfaz gráfica avanzada para análisis de vibraciones mediante magnificación de movimiento en video. Permite monitoreo, grabación manual, análisis FFT, selección de ROI, auto-tune de frecuencias, calibración física y filtrado avanzado, todo en tiempo real y con procesamiento paralelo optimizado.
 
-La interfaz gráfica está organizada en pestañas:
-- **Pestaña 1:** Configuración de parámetros y consola de eventos.
-- **Pestaña 2:** Video en tiempo real y gráficas de vibración/FFT.
-En la pestaña de video y gráficas, el video se muestra a la izquierda y las gráficas a la derecha para una visualización más intuitiva.
+**Nuevas características principales:**
+- **Dual método de análisis**: Cálculo de vibraciones mediante **brillo** y **flujo óptico**
+- **Filtro FFT mejorado**: Filtrado real de la señal (no solo visual)
+- **Rango de frecuencias optimizado**: FFT hasta 15 Hz con control automático de frame skipping
+- **Gráficas mejoradas**: Estadísticas en tiempo real, líneas de referencia, unidades dinámicas
+
+La interfaz está organizada en pestañas:
+- **Pestaña 1:** Configuración de parámetros y consola de eventos
+- **Pestaña 2:** Video en tiempo real y gráficas de vibración/FFT
 
 ## 🖥️ Requisitos
 
@@ -27,32 +32,32 @@ En la pestaña de video y gráficas, el video se muestra a la izquierda y las gr
 ## ⚡ Instalación Rápida
 
 1. Clona el repositorio:
-  ```bash
-  git clone https://github.com/nwtn777/motion_magnification.git
-  ```
+   ```bash
+   git clone https://github.com/nwtn777/Industrial_EMM.git
+   ```
 2. Instala dependencias:
-  ```bash
-  pip install -r requirements_gui.txt
-  ```
+   ```bash
+   pip install -r requirements_gui.txt
+   ```
 3. Ejecuta la GUI:
-  ```bash
-  python motion_magnification_gui.py
-  ```
+   ```bash
+   python motion_magnification_gui.py
+   ```
 
 ## 🧩 Principales Funcionalidades
 
-- Magnificación de movimiento en video (Eulerian Video Magnification)
-- Análisis FFT en tiempo real
-- Selección de ROI interactivo
-- Grabación manual de datos CSV (sin grabación automática)
-- Auto-tune de frecuencias de interés
-- Calibración física (mm/pixel)
-- Filtros avanzados (FFT, morfológicos, suavizado)
-- Procesamiento paralelo optimizado (ThreadPoolExecutor)
-- Señal de vibración basada en **flujo óptico** (no brillo)
-- Edición dinámica de parámetros principales (cámara, alpha, lambda, fl, fh)
-- Control total del usuario sobre grabación y monitoreo
-- Cierre seguro: el programa se detiene completamente al cerrar la ventana (sin procesos colgados)
+- **Magnificación de movimiento** en video (Eulerian Video Magnification)
+- **Dual análisis de vibraciones**: Brillo promedio y flujo óptico
+- **Análisis FFT en tiempo real** con filtrado real de la señal
+- **Gráficas mejoradas**: Estadísticas (RMS, min, max), líneas de referencia, unidades dinámicas
+- **Selección de ROI** interactivo
+- **Grabación manual** de datos CSV (sin grabación automática)
+- **Auto-tune** de frecuencias de interés
+- **Calibración física** (mm/pixel)
+- **Filtros avanzados** (FFT, morfológicos, suavizado)
+- **Procesamiento paralelo** optimizado (ThreadPoolExecutor)
+- **Control total** del usuario sobre grabación y monitoreo
+- **Cierre seguro**: El programa se detiene completamente al cerrar la ventana
 
 ### **Alternativas si pyrtools falla:**
 - Instalar desde GitHub: `pip install https://github.com/LabForComputationalVision/pyrtools/archive/main.zip`
@@ -64,41 +69,65 @@ En la pestaña de video y gráficas, el video se muestra a la izquierda y las gr
 
 1. **Seleccionar Cámara**: Elige el índice de cámara deseado (0, 1, 2...).
 2. **Configurar Parámetros**: Ajusta alpha, lambda, fl, fh (solo editables cuando el monitoreo está detenido).
-3. **Iniciar Monitoreo**: Presiona "▶ Iniciar" (con o sin calibración de ruido de fondo).
-4. **Seleccionar ROI**: Haz clic en "Seleccionar ROI" y dibuja el área de interés.
-5. **Auto-tune (Opcional)**: Usa "Auto-tune Freq" para sugerir frecuencias óptimas.
-6. **Editar Filtro FFT y Calibración**: Estos controles pueden editarse en cualquier momento, incluso durante el monitoreo.
-7. **Iniciar/Detener Grabación**: Presiona "🔴 Iniciar Grabación" para guardar datos CSV manualmente. Detén la grabación cuando lo desees.
-8. **Detener Monitoreo**: Puedes detener el monitoreo, cambiar parámetros principales y volver a iniciar el monitoreo y seleccionar un nuevo ROI, sin cerrar el programa.
-9. **Cerrar la ventana**: El programa se detiene completamente (sin procesos colgados).
+3. **Seleccionar Método de Vibración**: Elige entre "Brillo (intensidad)" o "Flujo óptico" según tu aplicación.
+4. **Iniciar Monitoreo**: Presiona "▶ Iniciar" (con o sin calibración de ruido de fondo).
+5. **Seleccionar ROI**: Haz clic en "Seleccionar ROI" y dibuja el área de interés.
+6. **Auto-tune (Opcional)**: Usa "Auto-tune Freq" para sugerir frecuencias óptimas.
+7. **Configurar Filtro FFT**: Activa el filtro pasa-alta para eliminar frecuencias bajas no deseadas.
+8. **Iniciar/Detener Grabación**: Presiona "🔴 Iniciar Grabación" para guardar datos CSV manualmente.
+9. **Detener Monitoreo**: Puedes detener el monitoreo, cambiar parámetros y volver a iniciar.
+10. **Cerrar la ventana**: El programa se detiene completamente (sin procesos colgados).
 
+### Métodos de Análisis de Vibración
 
+**Brillo (intensidad):**
+- Analiza cambios en la intensidad promedio del ROI
+- Ideal para superficies con variaciones de luminosidad
+- Menor carga computacional
+- Recomendado para motores, superficies metálicas
+
+**Flujo óptico:**
+- Analiza el movimiento real de píxeles en el ROI
+- Más preciso para detectar movimientos pequeños
+- Mayor carga computacional
+- Recomendado para estructuras, membranas, vibraciones sutiles
 
 ### Pestañas de la Interfaz
 
-- **Configuración y Consola:**
-  - Configuración de todos los parámetros y controles principales
-  - Consola de eventos y mensajes del sistema
-- **Video y Gráficas:**
-  - Video en tiempo real a la izquierda
-  - Gráficas de señal de vibración (flujo óptico) y FFT a la derecha
+**Configuración y Consola:**
+- Configuración de todos los parámetros y controles principales
+- Selección del método de vibración (brillo/flujo óptico)
+- Consola de eventos y mensajes del sistema
 
-Esta organización facilita el monitoreo y ajuste de parámetros sin perder de vista el análisis visual y gráfico.
+**Video y Gráficas:**
+- Video en tiempo real a la izquierda
+- Gráficas de señal de vibración y FFT a la derecha
+- Estadísticas en tiempo real (RMS, min, max, pico FFT)
+- Líneas de referencia y unidades dinámicas
 
 
 ## 📊 Grabación y Monitoreo de Datos
 
 ### Grabación Manual de Datos CSV
-- Los datos solo se graban cuando el usuario presiona "🔴 Iniciar Grabación".
-- Los archivos se guardan en `historiales/vibration_recording_YYYYMMDD_HHMMSS.csv`.
-- El usuario tiene control total: puede iniciar/detener grabación en cualquier momento durante el monitoreo.
-- El formato CSV incluye: frame, timestamp, mean_magnitude_px_frame, velocity_mm_s (si calibrado), mean_signal, mm_per_pixel.
+- Los datos solo se graban cuando el usuario presiona "🔴 Iniciar Grabación"
+- Los archivos se guardan en `historiales/vibration_recording_YYYYMMDD_HHMMSS.csv`
+- El usuario tiene control total: puede iniciar/detener grabación en cualquier momento durante el monitoreo
+- El formato CSV incluye: frame, timestamp, mean_magnitude_px_frame, velocity_mm_s (si calibrado), mean_signal, mm_per_pixel
 
 ### Métricas en Tiempo Real
-- **Magnitud de vibración**: Calculada a partir del flujo óptico (no brillo).
-- **Espectro de frecuencias**: Análisis FFT actualizado continuamente.
-- **Detección de picos**: Identificación automática de frecuencias dominantes.
-- **Tendencias temporales**: Evolución de la señal a lo largo del tiempo.
+- **Magnitud de vibración**: Calculada según el método seleccionado (brillo o flujo óptico)
+- **Espectro de frecuencias**: Análisis FFT con filtrado real de la señal
+- **Estadísticas de señal**: RMS, media, mínimo, máximo en tiempo real
+- **Detección de picos**: Identificación automática de frecuencias dominantes
+- **Líneas de referencia**: Media, RMS y pico FFT visualizados en las gráficas
+- **Tendencias temporales**: Evolución de la señal a lo largo del tiempo
+
+### Mejoras en Visualización
+- **Gráficas con estadísticas**: Información RMS, min, max, media mostrada en tiempo real
+- **Unidades dinámicas**: Etiquetas que cambian según calibración (px/frame o mm/s)
+- **Líneas de referencia**: Media, RMS y pico FFT marcados en las gráficas
+- **Títulos adaptativos**: Cambian según el método de vibración seleccionado
+- **Grid mejorado**: Mayor claridad visual con líneas de cuadrícula optimizadas
 
 
 ## ⌨️ Controles de Teclado (en ventanas OpenCV)
@@ -127,21 +156,15 @@ El sistema recolecta datos y optimiza fl y fh automáticamente.
 
 ## 🔽 Filtro FFT de Frecuencias Bajas
 
-Permite filtrar frecuencias bajas en la visualización del espectro FFT para mejorar la claridad y el análisis de vibraciones industriales. El filtro es configurable en tiempo real (checkbox y campo de frecuencia de corte) y solo afecta la visualización, no el procesamiento interno ni los datos grabados.
+Permite filtrar frecuencias bajas en el espectro FFT mediante **filtrado real de la señal** (no solo visual) para mejorar la claridad y el análisis de vibraciones industriales. El filtro aplica un pasa-alta usando `scipy.signal.butter` antes de calcular la FFT.
 
-```
-
-🔽 Filtro FFT:
-☐ Filtrar freq. bajas    Corte (Hz): [0.5]
-
-Componentes:
-1. **Checkbox "Filtrar freq. bajas"**: Activa/desactiva el filtro
-2. **Control "Corte (Hz)"**: Define la frecuencia de corte (0.1 - 10 Hz)
-
+**Controles del Filtro:**
+- ☐ **Filtrar freq. bajas**: Activa/desactiva el filtro pasa-alta real
+- **Corte (Hz)**: Define la frecuencia de corte (0.1 - 10 Hz)
 
 ### 📊 Casos de Uso Recomendados
 
-#### Monitoreo de Maquinaria Industrial
+**Monitoreo de Maquinaria Industrial**
 
 | Tipo de Equipo | Frecuencia de Corte Sugerida | Justificación |
 |----------------|------------------------------|---------------|
@@ -151,7 +174,7 @@ Componentes:
 | Ventiladores | 0.4 Hz | Reduce ruido de baja frecuencia |
 | Transmisiones | 1.0 - 2.0 Hz | Enfoca en frecuencias de engranajes |
 
-#### Análisis de Vibraciones Estructurales
+**Análisis de Vibraciones Estructurales**
 
 | Aplicación | Frecuencia de Corte Sugerida | Justificación |
 |------------|------------------------------|---------------|
@@ -159,50 +182,31 @@ Componentes:
 | Torres/Antenas | 0.2 - 0.5 Hz | Reduce deriva del viento |
 | Plataformas | 0.5 - 1.0 Hz | Enfoca en vibraciones operacionales |
 
-
 ### 📈 Resultados Esperados
 
-#### Antes del Filtrado
+**Antes del Filtrado:**
 - Pico dominante en frecuencias muy bajas (< 0.5 Hz)
 - Compresión visual del espectro de interés
 - Dificultad para identificar picos relevantes
-- Escala automática dominada por frecuencias bajas
 
-#### Después del Filtrado
-- Eliminación de picos de baja frecuencia no relevantes
-- Mejor resolución visual en el rango de frecuencias de interés
+**Después del Filtrado:**
+- Eliminación real de componentes de baja frecuencia de la señal
+- Mejor resolución en el rango de frecuencias de interés
 - Identificación más clara de patrones de vibración
-- Escala optimizada para el análisis
-
+- FFT con rango fijo hasta 15 Hz para mejor comparación
 
 ### ⚠️ Consideraciones Importantes
 
-#### Lo que NO hace el filtro
-- **No modifica el procesamiento interno** de Motion Magnification
-- **No afecta los parámetros fl y fh** del algoritmo principal
-- **No altera los datos guardados** en los archivos CSV
-- **Solo mejora la visualización** del espectro FFT
+**Lo que SÍ hace el filtro:**
+- **Filtra realmente la señal** antes de calcular la FFT
+- **Elimina componentes de baja frecuencia** de los datos analizados
+- **Mejora la precisión** del análisis espectral
 
-#### Recomendaciones de Uso
+**Recomendaciones de Uso:**
 1. **Comience con el filtro desactivado** para ver el espectro completo
 2. **Active y ajuste gradualmente** hasta encontrar el balance óptimo
 3. **Use valores conservadores** (0.3-0.8 Hz) para la mayoría de aplicaciones
 4. **Documente el valor usado** para comparaciones futuras
-
-
-### 🧪 Cómo Usar el Filtro FFT
-
-#### Pasos Básicos
-1. **Iniciar** la aplicación normalmente
-2. **Localizar** la sección "🔽 Filtro FFT" en los controles de configuración
-3. **Activar** marcando el checkbox "Filtrar freq. bajas"
-4. **Ajustar** la frecuencia de corte según necesidad (valor recomendado: 0.5 Hz)
-5. **Observar** la mejora en la visualización del espectro FFT
-
-#### Integración con Otras Funciones
-- **Auto-ajuste de frecuencias**: Considera solo frecuencias por encima del corte
-- **Calibración física**: Las unidades físicas (mm/s) se mantienen correctas
-- **Grabación de datos**: Los datos CSV incluyen información del filtro usado
 
 
 ## 🛠️ Solución de Problemas
@@ -311,6 +315,7 @@ Componentes:
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import multiprocessing
 from functools import lru_cache
+from scipy.signal import butter, filtfilt  # Para filtro FFT real
 ```
 
 #### Arquitectura de Procesamiento:
@@ -508,25 +513,30 @@ Todos los archivos CSV se guardan en el directorio `historiales/`:
 
 ## 🆕 **Funcionalidades Recientes (Agosto 2025)**
 
-### 🔽 Filtro FFT de Frecuencias Bajas ✅
-- **Nuevo control**: Checkbox + frecuencia de corte configurable
-- **Mejora visual**: Elimina frecuencias bajas que dominan el espectro
-- **Integración completa**: Compatible con auto-ajuste y calibración
-- **Casos de uso**: Optimizado para maquinaria industrial (motores, bombas, ventiladores)
-- **Valores recomendados**: 0.3-0.8 Hz según aplicación
+### � Dual Método de Análisis de Vibraciones ✅
+- **Nuevo control**: Radio buttons para seleccionar entre "Brillo (intensidad)" y "Flujo óptico"
+- **Análisis adaptativo**: El sistema calcula vibraciones según el método seleccionado
+- **Etiquetas dinámicas**: Las gráficas cambian sus títulos y unidades automáticamente
+- **Casos de uso optimizados**: Brillo para motores/metales, flujo óptico para estructuras/membranas
 
-### 📝 Control Manual de Grabación CSV ✅
-- **Eliminada grabación automática**: No más archivos CSV no deseados
-- **Control total del usuario**: Grabación solo cuando se presiona el botón
-- **Mejor experiencia**: Sin llenado innecesario de disco
-- **Privacidad mejorada**: Datos solo cuando el usuario decide
-- **Flujo simplificado**: Un solo tipo de archivo CSV (grabación manual)
+### 🔽 Filtro FFT Mejorado ✅
+- **Filtrado real**: Usa `scipy.signal.butter` para filtrar la señal antes de la FFT
+- **Eliminación efectiva**: Remueve componentes de baja frecuencia de los datos analizados
+- **Rango fijo**: FFT siempre muestra hasta 15 Hz para mejor comparación
+- **Integración completa**: Compatible con ambos métodos de análisis
 
-### 🎯 Beneficios de las Nuevas Funcionalidades
-- **Mejor visualización**: FFT más claro y útil para análisis industrial
-- **Control total**: Usuario decide exactamente cuándo grabar datos
-- **Eficiencia mejorada**: Menos archivos, mejor rendimiento
-- **Experiencia optimizada**: Interfaz más intuitiva y responsive
+### 📊 Gráficas Mejoradas ✅
+- **Estadísticas en tiempo real**: RMS, media, mín, máx mostrados en cada gráfica
+- **Líneas de referencia**: Media, RMS en señal; pico dominante en FFT
+- **Unidades dinámicas**: Cambian automáticamente según calibración (px/frame ↔ mm/s)
+- **Títulos adaptativos**: Reflejan el método de vibración seleccionado
+- **Grid optimizado**: Mejor visibilidad con líneas de cuadrícula mejoradas
+
+### 🚫 Frame Skipping Desactivado ✅
+- **Máximo rendimiento**: Procesamiento de todos los frames sin saltos
+- **Rango completo**: FFT utiliza todo el ancho de banda disponible
+- **Sin optimización automática**: Control total del usuario sobre el procesamiento
+- **FPS efectivo maximizado**: Para análisis de frecuencias más altas
 
 ## 🤝 **Contribuciones y Desarrollo**
 
