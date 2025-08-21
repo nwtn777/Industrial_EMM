@@ -137,6 +137,8 @@ class MotionMagnificationGUI:
         # Flags de optimización
         self.use_parallel_processing = tk.BooleanVar(value=True)
         
+        # Método de vibración: 'brillo' o 'flujo'
+        self.vibration_method = tk.StringVar(value='brillo')
         self.setup_ui()
         self.update_console()
         # Iniciar actualización de video con delay
@@ -185,7 +187,13 @@ class MotionMagnificationGUI:
         config_frame = ttk.LabelFrame(parent, text="Configuración de Parámetros")
         config_frame.pack(fill='x', padx=5, pady=5)
 
-        # Ayuda visual sobre alpha y lambda_c (mover aquí para evitar UnboundLocalError)
+        # Selección de método de vibración
+        ttk.Label(config_frame, text="Método de vibración:").grid(row=11, column=0, sticky='w', padx=5, pady=2)
+        metodo_frame = ttk.Frame(config_frame)
+        metodo_frame.grid(row=11, column=1, columnspan=3, sticky='w', padx=5, pady=2)
+        ttk.Radiobutton(metodo_frame, text="Brillo (intensidad)", variable=self.vibration_method, value='brillo').pack(side='left', padx=2)
+        ttk.Radiobutton(metodo_frame, text="Flujo óptico", variable=self.vibration_method, value='flujo').pack(side='left', padx=2)
+
         help_text = (
             "Alpha (amplificación): 10-50 = baja, 100-200 = recomendado, >300 = solo para señales muy limpias.\n"
             "Lambda_c (escala espacial): 10-50 = detalles finos, 100-200 = piezas grandes, >300 = objetos muy grandes.\n"
@@ -193,7 +201,7 @@ class MotionMagnificationGUI:
             "Ajusta alpha para más/menos sensibilidad y lambda_c según el tamaño de la estructura que te interesa."
         )
         ttk.Label(config_frame, text=help_text, foreground="blue", font=("Arial", 8), justify="left", wraplength=600).grid(
-            row=11, column=0, columnspan=4, sticky='w', padx=5, pady=(8, 2))
+            row=12, column=0, columnspan=4, sticky='w', padx=5, pady=(8, 2))
         
         # Selección de cámara
         ttk.Label(config_frame, text="Cámara:").grid(row=0, column=0, sticky='w', padx=5, pady=2)
@@ -1212,12 +1220,20 @@ class MotionMagnificationGUI:
                                 cv2.putText(frame, optim_text, (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 
                                            0.4, (0, 255, 255), 1)
                             
-                            # Datos para gráficas
-                            # Usar la magnitud promedio del flujo óptico como señal de vibración
-                            if flow_result and len(flow_result) == 2:
-                                mean_signal = flow_result[0]  # mean_magnitude
+
+                            # Datos para gráficas según método seleccionado
+                            if self.vibration_method.get() == 'flujo':
+                                # Usar la magnitud promedio del flujo óptico
+                                if flow_result and len(flow_result) == 2:
+                                    mean_signal = flow_result[0]
+                                else:
+                                    mean_signal = 0
                             else:
-                                mean_signal = 0
+                                # Usar el brillo promedio del ROI magnificado
+                                if out is not None:
+                                    mean_signal = np.mean(out)
+                                else:
+                                    mean_signal = 0
                             self.signal_buffer.append(mean_signal)
                             
                             # Guardar en CSV de grabación solo si está activa
