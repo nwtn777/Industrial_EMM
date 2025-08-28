@@ -24,7 +24,7 @@ except ImportError:
     import sys
     print("ERROR: pyrtools es una dependencia obligatoria para Motion Magnification GUI")
     print("Instálalo con: pip install pyrtools")
-    print("O ejecuta: python launcher.py para instalación automática")
+    print("O ejecuta: python launcher.py para instalación automática ")
     sys.exit(1)
 
 from skimage import img_as_float, img_as_ubyte
