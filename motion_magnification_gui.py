@@ -1,5 +1,6 @@
 import tkinter as tk
-from tkinter import ttk, scrolledtext, messagebox
+from tkinter import ttk, scrolledtext, messagebox, filedialog
+
 import cv2
 import numpy as np
 import matplotlib.pyplot as plt
@@ -16,6 +17,9 @@ from PIL import Image, ImageTk
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import multiprocessing
 from functools import lru_cache
+
+# Importar función de generación de reportes
+from reporte_estadistico import generar_reportes_para_archivos
 
 # Verificar pyrtools como dependencia obligatoria
 try:
@@ -148,6 +152,7 @@ class MotionMagnificationGUI:
         # Iniciar actualización de video con delay
         self.root.after(1000, self.update_video_display)
         
+
     def setup_ui(self):
         """Configurar la interfaz de usuario con pestañas"""
         notebook = ttk.Notebook(self.root)
@@ -184,6 +189,43 @@ class MotionMagnificationGUI:
         graph_frame = ttk.Frame(h_paned)
         h_paned.add(graph_frame, weight=2)
         self.setup_graph_panel(graph_frame)
+
+        # --- Pestaña 3: Reporte Estadístico ---
+        report_tab = ttk.Frame(notebook)
+        notebook.add(report_tab, text="Reporte Estadístico")
+        self.setup_report_tab(report_tab)
+
+    def setup_report_tab(self, parent):
+        """Configura la pestaña de generación de reportes PDF estadísticos."""
+        label = ttk.Label(parent, text="Generar reporte PDF estadístico de archivos CSV de señal.", font=("Arial", 12))
+        label.pack(pady=20)
+
+        btn = ttk.Button(parent, text="Seleccionar archivos CSV y generar reporte", command=self.handle_generate_report)
+        btn.pack(pady=10)
+
+        self.report_status = ttk.Label(parent, text="", foreground="blue")
+        self.report_status.pack(pady=10)
+
+    def handle_generate_report(self):
+        file_paths = filedialog.askopenfilenames(
+            title='Selecciona uno o más archivos CSV',
+            filetypes=[('Archivos CSV', '*.csv')]
+        )
+        if not file_paths:
+            return
+        self.report_status.config(text="Generando reportes, por favor espera...")
+        self.root.update_idletasks()
+        try:
+            pdfs = generar_reportes_para_archivos(file_paths)
+            if pdfs:
+                msg = "Reportes generados:\n" + "\n".join(pdfs)
+                self.report_status.config(text=msg, foreground="green")
+                messagebox.showinfo("Listo", msg)
+            else:
+                self.report_status.config(text="No se generaron reportes.", foreground="orange")
+        except Exception as e:
+            self.report_status.config(text=f"Error: {e}", foreground="red")
+            messagebox.showerror("Error", f"Error generando reportes: {e}")
         
     def setup_control_panel(self, parent):
         """Configurar el panel de control"""
@@ -382,11 +424,19 @@ class MotionMagnificationGUI:
         """Configurar el panel de gráficas"""
         graph_label_frame = ttk.LabelFrame(parent, text="Análisis en Tiempo Real")
         graph_label_frame.pack(fill='both', expand=True, padx=5, pady=5)
-        
+
+        # Botones de grabación CSV
+        button_frame = ttk.Frame(graph_label_frame)
+        button_frame.pack(fill='x', padx=5, pady=(5, 0))
+        self.graph_record_button = ttk.Button(button_frame, text="🔴 Iniciar Grabación CSV", command=self.start_recording)
+        self.graph_record_button.pack(side='left', padx=5)
+        self.graph_stop_record_button = ttk.Button(button_frame, text="⏺ Detener Grabación", command=self.stop_recording, state='disabled')
+        self.graph_stop_record_button.pack(side='left', padx=5)
+
         # Frame para gráficas con mejor layout
         self.fig, (self.ax1, self.ax2) = plt.subplots(2, 1, figsize=(8, 6))
         self.fig.patch.set_facecolor('white')
-        
+
         # Gráfica de señal de vibración
         self.ax1.set_title("📊 Señal de Vibración (ROI)", fontsize=12, fontweight='bold')
         self.ax1.set_xlabel("Frame #")
@@ -394,7 +444,7 @@ class MotionMagnificationGUI:
         self.ax1.grid(True, alpha=0.3)
         self.line1, = self.ax1.plot([], [], 'b-', linewidth=1.5, label='Señal de vibración')
         self.ax1.legend(loc='upper right')
-        
+
         # Gráfica FFT - la etiqueta del eje Y se actualizará dinámicamente
         self.ax2.set_title("📈 Espectro de Frecuencias (FFT)", fontsize=12, fontweight='bold')
         self.ax2.set_xlabel("Frecuencia (Hz)")
@@ -402,13 +452,25 @@ class MotionMagnificationGUI:
         self.ax2.grid(True, alpha=0.3)
         self.line2, = self.ax2.plot([], [], 'r-', linewidth=1.5, label='FFT')
         self.ax2.legend(loc='upper right')
-        
+
         plt.tight_layout()
-        
+
         # Integrar matplotlib en tkinter
         self.canvas = FigureCanvasTkAgg(self.fig, graph_label_frame)
         self.canvas.draw()
         self.canvas.get_tk_widget().pack(fill='both', expand=True, padx=5, pady=5)
+
+        # Sincronizar estado de botones con los de la pestaña de controles
+        self.update_graph_record_buttons()
+
+    def update_graph_record_buttons(self):
+        """Sincroniza el estado de los botones de grabación en la pestaña de gráficas."""
+        if hasattr(self, 'is_recording') and self.is_recording:
+            self.graph_record_button.config(state='disabled')
+            self.graph_stop_record_button.config(state='normal')
+        else:
+            self.graph_record_button.config(state='normal')
+            self.graph_stop_record_button.config(state='disabled')
         
     def setup_console_panel(self, parent):
         """Configurar el panel de consola"""
@@ -1035,36 +1097,28 @@ class MotionMagnificationGUI:
         if not self.is_running:
             messagebox.showwarning("Advertencia", "Primero inicia el monitoreo del sistema")
             return
-            
         try:
             # Crear archivo CSV para grabación
             timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
             self.recording_filename = f"historiales/vibration_recording_{timestamp}.csv"
-            
-            # Asegurar que el directorio existe
             os.makedirs("historiales", exist_ok=True)
-            
-            # Abrir archivo para escritura
             self.csv_file = open(self.recording_filename, mode='w', newline='')
             self.csv_writer = csv.writer(self.csv_file)
-            
-            # Escribir headers según el estado de calibración
             if self.is_calibrated:
                 self.csv_writer.writerow(["frame", "timestamp", "mean_magnitude_px_frame", 
                                         "velocity_mm_s", "mean_signal", "mm_per_pixel"])
             else:
                 self.csv_writer.writerow(["frame", "timestamp", "mean_magnitude_px_frame", "mean_signal"])
-            
             self.is_recording = True
-            
             # Actualizar interfaz
             self.record_button.config(state='disabled')
             self.stop_record_button.config(state='normal')
             self.recording_status_label.config(text=f"Grabación: ACTIVA - {self.recording_filename}", 
                                              foreground="green")
-            
             self.log_message(f"Grabación iniciada: {self.recording_filename}")
-            
+            # Actualizar botones de la pestaña de gráficas
+            if hasattr(self, 'graph_record_button'):
+                self.update_graph_record_buttons()
         except Exception as e:
             messagebox.showerror("Error", f"Error al iniciar grabación: {str(e)}")
             self.log_message(f"Error al iniciar grabación: {str(e)}")
@@ -1073,27 +1127,24 @@ class MotionMagnificationGUI:
         """Detener la grabación de datos"""
         if not self.is_recording:
             return
-            
         try:
             # Cerrar archivo CSV
             if self.csv_file:
                 self.csv_file.close()
                 self.csv_file = None
                 self.csv_writer = None
-            
             self.is_recording = False
-            
             # Actualizar interfaz
             self.record_button.config(state='normal' if self.is_running else 'disabled')
             self.stop_record_button.config(state='disabled')
             self.recording_status_label.config(text="Grabación: Detenida", foreground="orange")
-            
             self.log_message(f"Grabación detenida. Archivo guardado: {self.recording_filename}")
-            
+            # Actualizar botones de la pestaña de gráficas
+            if hasattr(self, 'graph_record_button'):
+                self.update_graph_record_buttons()
             # Solo mostrar messagebox si el sistema está ejecutándose (evitar popup al cerrar)
             if self.is_running:
                 messagebox.showinfo("Grabación", f"Datos guardados en:\n{self.recording_filename}")
-            
         except Exception as e:
             messagebox.showerror("Error", f"Error al detener grabación: {str(e)}")
             self.log_message(f"Error al detener grabación: {str(e)}")

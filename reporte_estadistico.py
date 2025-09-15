@@ -100,7 +100,9 @@ def generar_pdf(stats, image_paths, fft_image_paths, fft_peaks_dict, output_pdf)
         pdf.add_image(img)
     pdf.output(output_pdf)
 
+
 def procesar_archivo(csv_path):
+    """Genera un reporte PDF para un archivo CSV y retorna la ruta del PDF generado."""
     df = pd.read_csv(csv_path)
     stats = calcular_estadisticas(df)
     output_dir = os.path.dirname(csv_path)
@@ -111,6 +113,17 @@ def procesar_archivo(csv_path):
     for img in image_paths + fft_image_paths:
         os.remove(img)
     return output_pdf
+
+def generar_reportes_para_archivos(file_paths):
+    """Genera reportes PDF para una lista de archivos CSV. Devuelve lista de rutas de PDF generados."""
+    reportes = []
+    for path in file_paths:
+        try:
+            pdf_path = procesar_archivo(path)
+            reportes.append(pdf_path)
+        except Exception as e:
+            print(f'Error procesando {path}: {e}')
+    return reportes
 
 def seleccionar_archivos():
     file_paths = filedialog.askopenfilenames(
@@ -129,6 +142,7 @@ def seleccionar_archivos():
     if reportes:
         messagebox.showinfo('Listo', f'Reportes generados:\n' + '\n'.join(reportes))
 
+
 def main():
     root = tk.Tk()
     root.title('Generador de Reportes Estadísticos de Señal')
@@ -136,6 +150,7 @@ def main():
     btn = tk.Button(root, text='Seleccionar archivos CSV', command=seleccionar_archivos, font=('Arial', 12), width=30)
     btn.pack(pady=40)
     root.mainloop()
+
 
 if __name__ == '__main__':
     main()
