@@ -856,12 +856,12 @@ class MotionMagnificationGUI:
             # Calcular distancia en píxeles
             p1, p2 = self.calib_points
             pixel_distance = np.sqrt((p2[0] - p1[0])**2 + (p2[1] - p1[1])**2)
-            
+            # Actualizar campo de píxeles automáticamente
+            self.calibration_pixels.set(int(round(pixel_distance)))
             # Calcular mm por píxel
             mm_per_pixel = self.calibration_distance_mm.get() / pixel_distance
             self.mm_per_pixel.set(mm_per_pixel)
             self.is_calibrated = True
-            
             self.log_message(f"Calibración completada: {mm_per_pixel:.4f} mm/píxel")
             self.log_message(f"Distancia medida: {pixel_distance:.1f} píxeles = {self.calibration_distance_mm.get()}mm")
             self.calibration_status_label.config(
