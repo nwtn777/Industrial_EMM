@@ -16,6 +16,7 @@ Interfaz gráfica avanzada para análisis de vibraciones mediante magnificación
 - **Filtro FFT mejorado**: Filtrado real de la señal (no solo visual)
 - **Rango de frecuencias optimizado**: FFT hasta 15 Hz con control automático de frame skipping
 - **Gráficas mejoradas**: Estadísticas en tiempo real, líneas de referencia, unidades dinámicas
+- **Exportación avanzada**: PDF reports y exportación de gráficas
 
 La interfaz está organizada en pestañas:
 - **Pestaña 1:** Configuración de parámetros y consola de eventos
@@ -495,7 +496,6 @@ Todos los archivos CSV se guardan en el directorio `historiales/`:
 - [ ] **Vista previa integrada**: Video en tiempo real dentro de la GUI
 - [ ] **Múltiples ROIs**: Monitoreo simultáneo de varias zonas
 - [ ] **Alertas inteligentes**: Sistema de notificaciones por umbral
-- [ ] **Exportación avanzada**: PDF reports y exportación de gráficas
 - [ ] **Base de datos**: Almacenamiento histórico con SQLite
 - [ ] **API REST**: Integración con sistemas SCADA/MES
 - [ ] **Machine Learning**: Detección automática de anomalías
