@@ -207,10 +207,10 @@ class MotionMagnificationGUI:
         config_console_tab = ttk.Frame(notebook)
         notebook.add(config_console_tab, text="Configuración y Consola")
 
-    # Frame superior para consola (sin controles de parámetros)
-    console_only_frame = ttk.Frame(config_console_tab)
-    console_only_frame.pack(fill='x', padx=5, pady=(5, 0))
-    # Ya no se llama a setup_control_panel aquí
+        # Frame superior para controles/configuración
+        control_frame = ttk.Frame(config_console_tab)
+        control_frame.pack(fill='x', padx=5, pady=(5, 0))
+        self.setup_control_panel(control_frame)
 
         # Frame inferior para consola
         console_frame = ttk.Frame(config_console_tab)
@@ -482,39 +482,46 @@ class MotionMagnificationGUI:
         
     def setup_graph_panel(self, parent):
         """Configurar el panel de gráficas"""
-    # --- NUEVO: Controles de parámetros y botones en la pestaña de gráficos ---
-    controls_frame = ttk.LabelFrame(parent, text="Controles y Parámetros")
-    controls_frame.pack(fill='x', padx=5, pady=5)
-    self.setup_control_panel(controls_frame)
+        graph_label_frame = ttk.LabelFrame(parent, text="Análisis en Tiempo Real")
+        graph_label_frame.pack(fill='both', expand=True, padx=5, pady=5)
 
-    # Frame para gráficas con mejor layout
-    graph_label_frame = ttk.LabelFrame(parent, text="Análisis en Tiempo Real")
-    graph_label_frame.pack(fill='both', expand=True, padx=5, pady=5)
+        # Botones de grabación CSV
+        button_frame = ttk.Frame(graph_label_frame)
+        button_frame.pack(fill='x', padx=5, pady=(5, 0))
+        self.graph_record_button = ttk.Button(button_frame, text="🔴 Iniciar Grabación CSV", command=self.start_recording)
+        self.graph_record_button.pack(side='left', padx=5)
+        self.graph_stop_record_button = ttk.Button(button_frame, text="⏺ Detener Grabación", command=self.stop_recording, state='disabled')
+        self.graph_stop_record_button.pack(side='left', padx=5)
 
-    self.fig, (self.ax1, self.ax2) = plt.subplots(2, 1, figsize=(8, 6))
-    self.fig.patch.set_facecolor('white')
+        # Frame para gráficas con mejor layout
+        self.fig, (self.ax1, self.ax2) = plt.subplots(2, 1, figsize=(8, 6))
+        self.fig.patch.set_facecolor('white')
 
-    self.ax1.set_title("📊 Señal de Vibración (ROI)", fontsize=12, fontweight='bold')
-    self.ax1.set_xlabel("Frame #")
-    self.ax1.set_ylabel("Intensidad Media")
-    self.ax1.grid(True, alpha=0.3)
-    self.line1, = self.ax1.plot([], [], 'b-', linewidth=1.5, label='Señal de vibración')
-    self.ax1.legend(loc='upper right')
+        # Gráfica de señal de vibración
+        self.ax1.set_title("📊 Señal de Vibración (ROI)", fontsize=12, fontweight='bold')
+        self.ax1.set_xlabel("Frame #")
+        self.ax1.set_ylabel("Intensidad Media")
+        self.ax1.grid(True, alpha=0.3)
+        self.line1, = self.ax1.plot([], [], 'b-', linewidth=1.5, label='Señal de vibración')
+        self.ax1.legend(loc='upper right')
 
-    self.ax2.set_title("📈 Espectro de Frecuencias (FFT)", fontsize=12, fontweight='bold')
-    self.ax2.set_xlabel("Frecuencia (Hz)")
-    self.ax2.set_ylabel("Magnitud")
-    self.ax2.grid(True, alpha=0.3)
-    self.line2, = self.ax2.plot([], [], 'r-', linewidth=1.5, label='FFT')
-    self.ax2.legend(loc='upper right')
+        # Gráfica FFT - la etiqueta del eje Y se actualizará dinámicamente
+        self.ax2.set_title("📈 Espectro de Frecuencias (FFT)", fontsize=12, fontweight='bold')
+        self.ax2.set_xlabel("Frecuencia (Hz)")
+        self.ax2.set_ylabel("Magnitud")  # Se actualizará dinámicamente
+        self.ax2.grid(True, alpha=0.3)
+        self.line2, = self.ax2.plot([], [], 'r-', linewidth=1.5, label='FFT')
+        self.ax2.legend(loc='upper right')
 
-    plt.tight_layout()
+        plt.tight_layout()
 
-    self.canvas = FigureCanvasTkAgg(self.fig, graph_label_frame)
-    self.canvas.draw()
-    self.canvas.get_tk_widget().pack(fill='both', expand=True, padx=5, pady=5)
+        # Integrar matplotlib en tkinter
+        self.canvas = FigureCanvasTkAgg(self.fig, graph_label_frame)
+        self.canvas.draw()
+        self.canvas.get_tk_widget().pack(fill='both', expand=True, padx=5, pady=5)
 
-    self.update_graph_record_buttons()
+        # Sincronizar estado de botones con los de la pestaña de controles
+        self.update_graph_record_buttons()
 
     def update_graph_record_buttons(self):
         """Sincroniza el estado de los botones de grabación en la pestaña de gráficas."""
