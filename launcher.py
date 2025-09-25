@@ -39,8 +39,10 @@ class DependencyChecker:
             ("matplotlib", "matplotlib"),
             ("scipy", "scipy"),
             ("skimage", "scikit-image"),
+            ("pyrtools", "pyrtools"),
             ("PIL", "pillow"),
-            ("pyrtools", "pyrtools")
+            ("pandas", "pandas"),
+            ("fpdf", "fpdf")
         ]
         
         # Dependencia opcional (actualmente ninguna)
