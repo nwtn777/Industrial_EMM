@@ -35,6 +35,51 @@ from skimage import img_as_float, img_as_ubyte
 import copy
 
 class MotionMagnificationGUI:
+    def optimize_alpha_lambda(self, frame, roi, alpha_range=None, lambda_range=None, metric='energy'):
+        """
+        Busca los mejores valores de alpha y lambda_c para maximizar la energía de movimiento en la ROI.
+        Args:
+            frame: Frame de entrada (BGR)
+            roi: (x, y, w, h)
+            alpha_range: lista o np.arange de valores alpha
+            lambda_range: lista o np.arange de valores lambda_c
+            metric: 'energy' (por defecto)
+        Returns:
+            dict con 'best_alpha', 'best_lambda', 'best_metric', 'results' (lista de dicts)
+        """
+        import numpy as np
+        if alpha_range is None:
+            alpha_range = np.linspace(50, 300, 6)  # Ejemplo: [50, 100, ..., 300]
+        if lambda_range is None:
+            lambda_range = np.linspace(20, 120, 6)
+        x, y, w, h = roi
+        roi_img = frame[y:y+h, x:x+w]
+        gray = cv2.cvtColor(roi_img, cv2.COLOR_BGR2GRAY)
+        best_metric = -np.inf
+        best_alpha = None
+        best_lambda = None
+        results = []
+        for alpha in alpha_range:
+            for lambd in lambda_range:
+                self.alpha.set(alpha)
+                self.lambda_c.set(lambd)
+                if self.magnify_engine:
+                    magnified = self.magnify_engine.Magnify(gray)
+                else:
+                    magnified = gray
+                # Métrica: energía total del movimiento (varianza de la diferencia)
+                diff = cv2.absdiff(magnified, gray)
+                energy = np.var(diff)
+                results.append({'alpha': alpha, 'lambda': lambd, 'energy': energy})
+                if energy > best_metric:
+                    best_metric = energy
+                    best_alpha = alpha
+                    best_lambda = lambd
+        # Restaurar valores óptimos
+        self.alpha.set(best_alpha)
+        self.lambda_c.set(best_lambda)
+        self.log_message(f"Optimización alpha/lambda: alpha={best_alpha}, lambda={best_lambda}, energía={best_metric:.2f}")
+        return {'best_alpha': best_alpha, 'best_lambda': best_lambda, 'best_metric': best_metric, 'results': results}
     def get_effective_fps(self):
         """Devuelve el FPS efectivo considerando el salto de frames."""
         skip = max(1, self.skip_frames.get())
@@ -162,10 +207,10 @@ class MotionMagnificationGUI:
         config_console_tab = ttk.Frame(notebook)
         notebook.add(config_console_tab, text="Configuración y Consola")
 
-        # Frame superior para controles/configuración
-        control_frame = ttk.Frame(config_console_tab)
-        control_frame.pack(fill='x', padx=5, pady=(5, 0))
-        self.setup_control_panel(control_frame)
+    # Frame superior para consola (sin controles de parámetros)
+    console_only_frame = ttk.Frame(config_console_tab)
+    console_only_frame.pack(fill='x', padx=5, pady=(5, 0))
+    # Ya no se llama a setup_control_panel aquí
 
         # Frame inferior para consola
         console_frame = ttk.Frame(config_console_tab)
@@ -232,6 +277,21 @@ class MotionMagnificationGUI:
         # Frame superior para configuración
         config_frame = ttk.LabelFrame(parent, text="Configuración de Parámetros")
         config_frame.pack(fill='x', padx=5, pady=5)
+
+        # Botón para optimización automática de alpha/lambda
+        def run_auto_opt():
+            # Usar el frame actual y la ROI actual
+            frame = self.current_frame
+            roi = getattr(self, 'roi', None)
+            if frame is None or roi is None:
+                messagebox.showwarning("Advertencia", "No hay frame o ROI disponible para optimizar.")
+                return
+            self.log_message("Iniciando optimización automática de alpha/lambda...")
+            result = self.optimize_alpha_lambda(frame, roi)
+            messagebox.showinfo("Optimización completa", f"Alpha óptimo: {result['best_alpha']}\nLambda óptimo: {result['best_lambda']}\nEnergía: {result['best_metric']:.2f}")
+
+        opt_btn = ttk.Button(config_frame, text="Optimizar Alpha/Lambda automáticamente", command=run_auto_opt)
+        opt_btn.grid(row=1, column=4, padx=10, pady=2, sticky='w')
 
         # Selección de método de vibración
         ttk.Label(config_frame, text="Método de vibración:").grid(row=11, column=0, sticky='w', padx=5, pady=2)
@@ -422,46 +482,39 @@ class MotionMagnificationGUI:
         
     def setup_graph_panel(self, parent):
         """Configurar el panel de gráficas"""
-        graph_label_frame = ttk.LabelFrame(parent, text="Análisis en Tiempo Real")
-        graph_label_frame.pack(fill='both', expand=True, padx=5, pady=5)
+    # --- NUEVO: Controles de parámetros y botones en la pestaña de gráficos ---
+    controls_frame = ttk.LabelFrame(parent, text="Controles y Parámetros")
+    controls_frame.pack(fill='x', padx=5, pady=5)
+    self.setup_control_panel(controls_frame)
 
-        # Botones de grabación CSV
-        button_frame = ttk.Frame(graph_label_frame)
-        button_frame.pack(fill='x', padx=5, pady=(5, 0))
-        self.graph_record_button = ttk.Button(button_frame, text="🔴 Iniciar Grabación CSV", command=self.start_recording)
-        self.graph_record_button.pack(side='left', padx=5)
-        self.graph_stop_record_button = ttk.Button(button_frame, text="⏺ Detener Grabación", command=self.stop_recording, state='disabled')
-        self.graph_stop_record_button.pack(side='left', padx=5)
+    # Frame para gráficas con mejor layout
+    graph_label_frame = ttk.LabelFrame(parent, text="Análisis en Tiempo Real")
+    graph_label_frame.pack(fill='both', expand=True, padx=5, pady=5)
 
-        # Frame para gráficas con mejor layout
-        self.fig, (self.ax1, self.ax2) = plt.subplots(2, 1, figsize=(8, 6))
-        self.fig.patch.set_facecolor('white')
+    self.fig, (self.ax1, self.ax2) = plt.subplots(2, 1, figsize=(8, 6))
+    self.fig.patch.set_facecolor('white')
 
-        # Gráfica de señal de vibración
-        self.ax1.set_title("📊 Señal de Vibración (ROI)", fontsize=12, fontweight='bold')
-        self.ax1.set_xlabel("Frame #")
-        self.ax1.set_ylabel("Intensidad Media")
-        self.ax1.grid(True, alpha=0.3)
-        self.line1, = self.ax1.plot([], [], 'b-', linewidth=1.5, label='Señal de vibración')
-        self.ax1.legend(loc='upper right')
+    self.ax1.set_title("📊 Señal de Vibración (ROI)", fontsize=12, fontweight='bold')
+    self.ax1.set_xlabel("Frame #")
+    self.ax1.set_ylabel("Intensidad Media")
+    self.ax1.grid(True, alpha=0.3)
+    self.line1, = self.ax1.plot([], [], 'b-', linewidth=1.5, label='Señal de vibración')
+    self.ax1.legend(loc='upper right')
 
-        # Gráfica FFT - la etiqueta del eje Y se actualizará dinámicamente
-        self.ax2.set_title("📈 Espectro de Frecuencias (FFT)", fontsize=12, fontweight='bold')
-        self.ax2.set_xlabel("Frecuencia (Hz)")
-        self.ax2.set_ylabel("Magnitud")  # Se actualizará dinámicamente
-        self.ax2.grid(True, alpha=0.3)
-        self.line2, = self.ax2.plot([], [], 'r-', linewidth=1.5, label='FFT')
-        self.ax2.legend(loc='upper right')
+    self.ax2.set_title("📈 Espectro de Frecuencias (FFT)", fontsize=12, fontweight='bold')
+    self.ax2.set_xlabel("Frecuencia (Hz)")
+    self.ax2.set_ylabel("Magnitud")
+    self.ax2.grid(True, alpha=0.3)
+    self.line2, = self.ax2.plot([], [], 'r-', linewidth=1.5, label='FFT')
+    self.ax2.legend(loc='upper right')
 
-        plt.tight_layout()
+    plt.tight_layout()
 
-        # Integrar matplotlib en tkinter
-        self.canvas = FigureCanvasTkAgg(self.fig, graph_label_frame)
-        self.canvas.draw()
-        self.canvas.get_tk_widget().pack(fill='both', expand=True, padx=5, pady=5)
+    self.canvas = FigureCanvasTkAgg(self.fig, graph_label_frame)
+    self.canvas.draw()
+    self.canvas.get_tk_widget().pack(fill='both', expand=True, padx=5, pady=5)
 
-        # Sincronizar estado de botones con los de la pestaña de controles
-        self.update_graph_record_buttons()
+    self.update_graph_record_buttons()
 
     def update_graph_record_buttons(self):
         """Sincroniza el estado de los botones de grabación en la pestaña de gráficas."""
@@ -1201,12 +1254,16 @@ class MotionMagnificationGUI:
             try:
                 frame_start_time = time.time();
                 
+
                 ret, frame = self.camera.read()
                 if not ret:
                     break
-                    
+
+                # Actualizar el frame actual para optimización y GUI
+                self.current_frame = frame.copy()
+
                 self.frame_count += 1
-                
+
                 # Verificar si se debe saltar este frame para mejorar rendimiento
                 if self.should_skip_frame():
                     continue
