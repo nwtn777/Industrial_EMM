@@ -35,28 +35,6 @@ from skimage import img_as_float, img_as_ubyte
 import copy
 
 class MotionMagnificationGUI:
-    def is_cuda_available(self):
-        """Detecta si OpenCV CUDA está disponible y usable."""
-        try:
-            count = cv2.cuda.getCudaEnabledDeviceCount()
-            return count > 0
-        except Exception:
-            return False
-
-    def gpu_gaussian_blur(self, img, ksize=(5,5), sigma=0):
-        """Aplica GaussianBlur usando CUDA si está disponible, si no usa CPU."""
-        if self.is_cuda_available():
-            try:
-                gpu_img = cv2.cuda_GpuMat()
-                gpu_img.upload(img)
-                gpu_blur = cv2.cuda.createGaussianFilter(gpu_img.type(), -1, ksize, sigma)
-                gpu_result = gpu_blur.apply(gpu_img)
-                result = gpu_result.download()
-                return result
-            except Exception as e:
-                self.log_message(f"Error en GPU GaussianBlur: {e}, usando CPU.")
-        # Fallback CPU
-        return cv2.GaussianBlur(img, ksize, sigma)
     def optimize_alpha_lambda(self, frame, roi, alpha_range=None, lambda_range=None, metric='energy'):
         """
         Busca los mejores valores de alpha y lambda_c para maximizar la energía de movimiento en la ROI.
@@ -215,11 +193,6 @@ class MotionMagnificationGUI:
         # Método de vibración: 'brillo' o 'flujo'
         self.vibration_method = tk.StringVar(value='brillo')
         self.setup_ui()
-        # Mensaje de estado de GPU/CPU
-        if self.is_cuda_available():
-            self.log_message("Procesamiento con GPU (CUDA) habilitado.")
-        else:
-            self.log_message("Procesamiento con CPU.")
         self.update_console()
         # Iniciar actualización de video con delay
         self.root.after(1000, self.update_video_display)
@@ -784,8 +757,8 @@ class MotionMagnificationGUI:
             
             # Inicializar motor de magnificación
             roi_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)[y:y+h, x:x+w]
-            roi_gray = self.gpu_gaussian_blur(roi_gray, (5, 5), 0)
-
+            roi_gray = cv2.GaussianBlur(roi_gray, (5, 5), 0)
+            
             self.magnify_engine = Magnify(roi_gray, 
                                         self.alpha.get(), 
                                         self.lambda_c.get(), 
