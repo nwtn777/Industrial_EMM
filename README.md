@@ -30,6 +30,16 @@ La interfaz está organizada en pestañas:
 - Cámara web compatible (USB o integrada)
 - Recomendado: CPU multinúcleo
 
+
+## 📚 Referencias
+
+
+Este software se inspira en el trabajo de Wu et al. sobre magnificación euleriana de video:
+
+> Hao-Yu Wu, Michael Rubinstein, Eugene Shih, John Guttag, Frédo Durand, William T. Freeman. "Eulerian Video Magnification for Revealing Subtle Changes in the World." ACM Transactions on Graphics (Proc. SIGGRAPH 2012), Vol. 31, No. 4, 2012. [Enlace al paper](https://people.csail.mit.edu/mrub/papers/eulerian_video_magnification_SIGGRAPH2012.pdf)
+
+Por favor cite este artículo si utiliza este software en trabajos académicos o publicaciones.
+
 ## ⚡ Instalación Rápida
 
 1. Clona el repositorio:
