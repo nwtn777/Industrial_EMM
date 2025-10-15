@@ -915,7 +915,8 @@ class MotionMagnificationGUI:
             p1, p2 = self.measure_points
             pixel_distance = np.sqrt((p2[0] - p1[0])**2 + (p2[1] - p1[1])**2)
             mm_distance = pixel_distance * self.mm_per_pixel.get()
-            
+            # Actualiza automáticamente la casilla de Pixeles
+            self.calibration_pixels.set(int(round(pixel_distance)))
             messagebox.showinfo("Resultado de Medición", 
                               f"Distancia medida:\n{pixel_distance:.1f} píxeles\n{mm_distance:.2f} mm")
             self.log_message(f"Medición: {pixel_distance:.1f}px = {mm_distance:.2f}mm")
