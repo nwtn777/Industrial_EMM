@@ -34,13 +34,13 @@ class DependencyChecker:
         
         # Lista de dependencias requeridas
         self.dependencies = [
-            ("cv2", "opencv-python"),
+            ("cv2", "opencv-contrib-python"),
             ("numpy", "numpy"),
             ("matplotlib", "matplotlib"),
             ("scipy", "scipy"),
             ("skimage", "scikit-image"),
-            ("pyrtools", "pyrtools"),
             ("PIL", "pillow"),
+            ("pyrtools", "pyrtools"),
             ("pandas", "pandas"),
             ("fpdf", "fpdf")
         ]
@@ -221,13 +221,15 @@ def main():
         print("Verificando dependencias desde línea de comandos...")
         
         dependencies = [
-            ("cv2", "opencv-python"),
+            ("cv2", "opencv-contrib-python"),
             ("numpy", "numpy"),
             ("matplotlib", "matplotlib"),
             ("scipy", "scipy"),
             ("skimage", "scikit-image"),
             ("PIL", "pillow"),
-            ("pyrtools", "pyrtools")
+            ("pyrtools", "pyrtools"),
+            ("pandas", "pandas"),
+            ("fpdf", "fpdf")
         ]
         
         missing = []

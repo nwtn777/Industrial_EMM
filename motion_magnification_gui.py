@@ -1609,7 +1609,7 @@ class Magnify(object):
             self.lowpass2[(u,0)] = (-self.low_b[1]*self.lowpass2[(u,0)] + self.low_a[0]*pyr[(u,0)] + self.low_a[1]*self.pyr_prev[(u,0)]) / self.low_b[0]
             self.filtered[u] = self.lowpass1[(u,0)] - self.lowpass2[(u,0)]
         self.pyr_prev = copy.deepcopy(pyr)
-        exaggeration_factor = 2
+        exaggeration_factor = 3 # Factor de exageración para mejorar visibilidad
         lambd = self.lambd
         delta = self.delta
         filtered = self.filtered
