@@ -47,39 +47,26 @@ class MotionMagnificationGUI:
         Returns:
             dict con 'best_alpha', 'best_lambda', 'best_metric', 'results' (lista de dicts)
         """
-        import numpy as np
-        if alpha_range is None:
-            alpha_range = np.linspace(50, 300, 6)  # Ejemplo: [50, 100, ..., 300]
-        if lambda_range is None:
-            lambda_range = np.linspace(20, 120, 6)
-        x, y, w, h = roi
-        roi_img = frame[y:y+h, x:x+w]
-        gray = cv2.cvtColor(roi_img, cv2.COLOR_BGR2GRAY)
-        best_metric = -np.inf
-        best_alpha = None
-        best_lambda = None
-        results = []
-        for alpha in alpha_range:
-            for lambd in lambda_range:
-                self.alpha.set(alpha)
-                self.lambda_c.set(lambd)
-                if self.magnify_engine:
-                    magnified = self.magnify_engine.Magnify(gray)
-                else:
-                    magnified = gray
-                # Métrica: energía total del movimiento (varianza de la diferencia)
-                diff = cv2.absdiff(magnified, gray)
-                energy = np.var(diff)
-                results.append({'alpha': alpha, 'lambda': lambd, 'energy': energy})
-                if energy > best_metric:
-                    best_metric = energy
-                    best_alpha = alpha
-                    best_lambda = lambd
-        # Restaurar valores óptimos
-        self.alpha.set(best_alpha)
-        self.lambda_c.set(best_lambda)
-        self.log_message(f"Optimización alpha/lambda: alpha={best_alpha}, lambda={best_lambda}, energía={best_metric:.2f}")
-        return {'best_alpha': best_alpha, 'best_lambda': best_lambda, 'best_metric': best_metric, 'results': results}
+        # Delegar la lógica de optimización al módulo de procesamiento para
+        # compartirla con el modo headless/CLI.
+        from src import processing
+
+        result = processing.optimize_alpha_lambda(frame, roi, self.magnify_engine, alpha_range, lambda_range, metric)
+
+        # Actualizar valores en la interfaz (variables Tk)
+        if result.get('best_alpha') is not None:
+            try:
+                self.alpha.set(float(result['best_alpha']))
+            except Exception:
+                pass
+        if result.get('best_lambda') is not None:
+            try:
+                self.lambda_c.set(float(result['best_lambda']))
+            except Exception:
+                pass
+
+        self.log_message(f"Optimización alpha/lambda: alpha={result.get('best_alpha')}, lambda={result.get('best_lambda')}, metric={result.get('best_metric')}")
+        return result
     def get_effective_fps(self):
         """Devuelve el FPS efectivo considerando el salto de frames."""
         skip = max(1, self.skip_frames.get())
